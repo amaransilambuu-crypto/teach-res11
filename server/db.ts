@@ -100,6 +100,42 @@ function getInitialData(): DatabaseSchema {
       can_delete: true,
       can_share: true,
     },
+    {
+      id: 'usr_pssofttech_01',
+      username: 'Admin (pssofttech)',
+      email: 'pssofttech@gmail.com',
+      password_hash: adminPasswordHash,
+      role: 'admin',
+      status: 'active',
+      storage_used: 125829120,
+      storage_limit: 20 * 1024 * 1024 * 1024,
+      avatar_color: '#4f46e5',
+      created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+      last_login: new Date().toISOString(),
+      device: 'Mobile Phone / Browser',
+      can_upload: true,
+      can_download: true,
+      can_delete: true,
+      can_share: true,
+    },
+    {
+      id: 'usr_vasisoft_01',
+      username: 'Teacher (vasisoft)',
+      email: 'vasisoft20815@gmail.com',
+      password_hash: defaultPasswordHash,
+      role: 'teacher',
+      status: 'active',
+      storage_used: 188743680,
+      storage_limit: 10 * 1024 * 1024 * 1024,
+      avatar_color: '#059669',
+      created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+      last_login: new Date().toISOString(),
+      device: 'Mobile Phone / Browser',
+      can_upload: true,
+      can_download: true,
+      can_delete: true,
+      can_share: true,
+    },
   ];
 
   // Seed folders matching prompt requirement #5:
@@ -469,7 +505,21 @@ class Database {
     try {
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.users)) {
+          const initial = getInitialData();
+          let modified = false;
+          for (const initUser of initial.users) {
+            if (!parsed.users.some((u: any) => u.email?.toLowerCase() === initUser.email.toLowerCase())) {
+              parsed.users.push(initUser);
+              modified = true;
+            }
+          }
+          if (modified) {
+            this.saveDirect(parsed);
+          }
+          return parsed;
+        }
       }
     } catch (err) {
       console.error('Error loading DB file, re-initializing:', err);

@@ -378,27 +378,9 @@ export const LoginView: React.FC = () => {
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
                 type="button"
-                id="demo-teacher-btn"
+                id="demo-pssofttech-btn"
                 disabled={loading}
-                onClick={() => handleQuickLogin('teacher@school.edu', 'teacher123')}
-                className="p-2.5 border border-sky-200 bg-sky-50/40 rounded-lg text-left hover:bg-sky-100/70 hover:border-sky-300 transition-colors group cursor-pointer disabled:opacity-50"
-              >
-                <div className="font-semibold text-slate-800 flex items-center justify-between">
-                  <span className="flex items-center">
-                    <Laptop className="w-3.5 h-3.5 mr-1 text-sky-600" />
-                    Teacher
-                  </span>
-                  <span className="text-2xs bg-sky-600 text-white px-1.5 py-0.5 rounded font-medium group-hover:bg-sky-700">Enter</span>
-                </div>
-                <div className="text-slate-600 truncate mt-1">teacher@school.edu</div>
-                <div className="text-slate-500 font-mono text-2xs">Pass: teacher123</div>
-              </button>
-
-              <button
-                type="button"
-                id="demo-admin-btn"
-                disabled={loading}
-                onClick={() => handleQuickLogin('admin@school.edu', 'admin123')}
+                onClick={() => handleQuickLogin('pssofttech@gmail.com', 'admin123')}
                 className="p-2.5 border border-indigo-200 bg-indigo-50/40 rounded-lg text-left hover:bg-indigo-100/70 hover:border-indigo-300 transition-colors group cursor-pointer disabled:opacity-50"
               >
                 <div className="font-semibold text-slate-800 flex items-center justify-between">
@@ -408,8 +390,60 @@ export const LoginView: React.FC = () => {
                   </span>
                   <span className="text-2xs bg-indigo-600 text-white px-1.5 py-0.5 rounded font-medium group-hover:bg-indigo-700">Enter</span>
                 </div>
-                <div className="text-slate-600 truncate mt-1">admin@school.edu</div>
-                <div className="text-slate-500 font-mono text-2xs">Pass: admin123</div>
+                <div className="text-slate-600 truncate mt-1">pssofttech@gmail.com</div>
+                <div className="text-slate-500 font-mono text-2xs">Admin Dashboard</div>
+              </button>
+
+              <button
+                type="button"
+                id="demo-vasisoft-btn"
+                disabled={loading}
+                onClick={() => handleQuickLogin('vasisoft20815@gmail.com', 'teacher123')}
+                className="p-2.5 border border-emerald-200 bg-emerald-50/40 rounded-lg text-left hover:bg-emerald-100/70 hover:border-emerald-300 transition-colors group cursor-pointer disabled:opacity-50"
+              >
+                <div className="font-semibold text-slate-800 flex items-center justify-between">
+                  <span className="flex items-center">
+                    <Laptop className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                    Teacher
+                  </span>
+                  <span className="text-2xs bg-emerald-600 text-white px-1.5 py-0.5 rounded font-medium group-hover:bg-emerald-700">Enter</span>
+                </div>
+                <div className="text-slate-600 truncate mt-1">vasisoft20815@gmail.com</div>
+                <div className="text-slate-500 font-mono text-2xs">Teacher Portal</div>
+              </button>
+
+              <button
+                type="button"
+                id="demo-teacher-btn"
+                disabled={loading}
+                onClick={() => handleQuickLogin('teacher@school.edu', 'teacher123')}
+                className="p-2 border border-slate-200 bg-slate-50 rounded-lg text-left hover:bg-slate-100 transition-colors group cursor-pointer disabled:opacity-50"
+              >
+                <div className="font-medium text-slate-700 flex items-center justify-between">
+                  <span className="flex items-center text-xs">
+                    <Laptop className="w-3 h-3 mr-1 text-slate-500" />
+                    School Teacher
+                  </span>
+                  <span className="text-2xs text-slate-500">1-Click</span>
+                </div>
+                <div className="text-slate-500 truncate text-2xs mt-0.5">teacher@school.edu</div>
+              </button>
+
+              <button
+                type="button"
+                id="demo-admin-btn"
+                disabled={loading}
+                onClick={() => handleQuickLogin('admin@school.edu', 'admin123')}
+                className="p-2 border border-slate-200 bg-slate-50 rounded-lg text-left hover:bg-slate-100 transition-colors group cursor-pointer disabled:opacity-50"
+              >
+                <div className="font-medium text-slate-700 flex items-center justify-between">
+                  <span className="flex items-center text-xs">
+                    <ShieldCheck className="w-3 h-3 mr-1 text-slate-500" />
+                    School Admin
+                  </span>
+                  <span className="text-2xs text-slate-500">1-Click</span>
+                </div>
+                <div className="text-slate-500 truncate text-2xs mt-0.5">admin@school.edu</div>
               </button>
             </div>
           </div>

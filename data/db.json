@@ -47,7 +47,7 @@
       "storage_limit": 10737418240,
       "avatar_color": "#8b5cf6",
       "created_at": "2026-09-09T02:04:05.030Z",
-      "last_login": "2026-09-10T14:27:39.636Z",
+      "last_login": "2026-09-10T15:38:07.570Z",
       "device": "Web Browser"
     },
     {
@@ -63,6 +63,24 @@
       "created_at": "2026-09-09T02:05:31.270Z",
       "last_login": "2026-09-10T14:27:39.734Z",
       "device": "Web Browser"
+    },
+    {
+      "id": "usr_teacher_02",
+      "username": "Sarah Jenkins",
+      "email": "sarah.math@school.edu",
+      "password_hash": "$2b$10$vLJhGeRV9ENvkInCwta4Gu6eCCbj3k9mmxvydl8lGgtF9OUqiUW92",
+      "role": "teacher",
+      "status": "active",
+      "storage_used": 188743680,
+      "storage_limit": 10737418240,
+      "avatar_color": "#10b981",
+      "created_at": "2026-09-03T15:37:57.657Z",
+      "last_login": "2026-09-10T14:37:57.657Z",
+      "device": "iPad Air",
+      "can_upload": true,
+      "can_download": true,
+      "can_delete": true,
+      "can_share": true
     }
   ],
   "folders": [],
@@ -257,6 +275,17 @@
     }
   ],
   "logs": [
+    {
+      "id": "log_1789054687574",
+      "user_id": "usr_1788919444938_1t8aqr",
+      "user_name": "Admin",
+      "user_email": "pssofttech@gmail.com",
+      "action": "USER_LOGIN",
+      "details": "User logged in successfully from Web Browser",
+      "timestamp": "2026-09-10T15:38:07.574Z",
+      "device": "Web Browser",
+      "ip": "127.0.0.1"
+    },
     {
       "id": "log_1789050520603",
       "user_id": "usr_admin_01",

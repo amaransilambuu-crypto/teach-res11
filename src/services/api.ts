@@ -211,7 +211,34 @@ async function handleLocalFallback<T>(endpoint: string, options: RequestInit = {
   return {} as T;
 }
 
+let isStaticHostMode: boolean | null = null;
+
+export function checkIsStaticHost(): boolean {
+  if (isStaticHostMode !== null) return isStaticHostMode;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    // Known static hosting domains where custom backend Node Express servers do not natively run at origin
+    if (
+      host.endsWith('.netlify.app') ||
+      host.endsWith('.github.io') ||
+      host.endsWith('.pages.dev') ||
+      host.endsWith('.web.app') ||
+      host.endsWith('.firebaseapp.com') ||
+      host.endsWith('.surge.sh')
+    ) {
+      isStaticHostMode = true;
+      return true;
+    }
+  }
+  return false;
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  // If static hosting without an active Node backend is already known (e.g. Netlify)
+  if (checkIsStaticHost() || isStaticHostMode) {
+    return handleLocalFallback<T>(endpoint, options);
+  }
+
   const token = getStoredToken();
   const headers = new Headers(options.headers || {});
 
@@ -231,10 +258,20 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       headers,
     });
 
+    const contentType = res.headers.get('content-type') || '';
+
+    // If server returned 404 Not Found or an HTML response (typical of Netlify / SPA rewrites where /api/* doesn't exist)
+    if (res.status === 404 || contentType.includes('text/html')) {
+      console.warn(`[TRH Hub] Static host detected (/api endpoint returned ${res.status}). Switching seamlessly to client-side database.`);
+      isStaticHostMode = true;
+      return handleLocalFallback<T>(endpoint, options);
+    }
+
     if (res.ok) {
       return await res.json();
     }
 
+    // Backend returned a real API error response (e.g. 400 Bad Request, 401 Unauthorized with JSON error message)
     let errorMsg = `Server error (${res.status})`;
     try {
       const data = await res.json();
@@ -244,19 +281,23 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     }
     throw new Error(errorMsg);
   } catch (err: any) {
-    // Only use local fallback if offline or completely disconnected from network
+    // If it's a real business error from a live server (e.g. invalid credentials), throw it to the user
     if (
-      typeof navigator !== 'undefined' &&
-      !navigator.onLine &&
-      (err.message?.includes('Failed to fetch') ||
-        err.message?.includes('NetworkError') ||
-        err.message?.includes('Load failed'))
+      err.message &&
+      !err.message.includes('Server error (404)') &&
+      !err.message.includes('Failed to fetch') &&
+      !err.message.includes('NetworkError') &&
+      !err.message.includes('Load failed') &&
+      !err.message.includes('Unexpected token') &&
+      !err.message.includes('is not valid JSON')
     ) {
-      console.warn(`[TRH Hub] Offline detected. Activating offline view fallback for ${endpoint}.`);
-      return await handleLocalFallback<T>(endpoint, options);
+      throw err;
     }
 
-    throw err;
+    // Otherwise, backend API is unavailable or on static hosting -> seamlessly activate client database
+    console.warn(`[TRH Hub] Backend connection failed (${err.message}). Activating local client database.`);
+    isStaticHostMode = true;
+    return handleLocalFallback<T>(endpoint, options);
   }
 }
 
@@ -478,6 +519,23 @@ export const api = {
         const clientDevice = detectDevice();
 
         try {
+          // If on Netlify or static host without backend server, save directly to client-side database
+          if (checkIsStaticHost() || isStaticHostMode) {
+            for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
+              if (isAborted) throw new Error('Upload cancelled by user.');
+              const file = files[fileIdx];
+              updateAggregateProgress(file.size, file.name, fileIdx);
+              const localFile = await saveUploadedFileLocally(file, folderId, sharingType, clientDevice);
+              createdFiles.push(localFile);
+              completedBytes += file.size;
+            }
+            resolve({
+              message: `${createdFiles.length} file(s) saved successfully.`,
+              files: createdFiles,
+            });
+            return;
+          }
+
           for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
             if (isAborted) throw new Error('Upload cancelled by user.');
             const file = files[fileIdx];
@@ -512,8 +570,18 @@ export const api = {
                       const data = JSON.parse(xhr.responseText);
                       res(data.file);
                     } catch {
+                      if (xhr.responseText.startsWith('<!DOCTYPE') || xhr.responseText.includes('<html')) {
+                        isStaticHostMode = true;
+                        const localItem = await saveUploadedFileLocally(file, folderId, sharingType, clientDevice);
+                        res(localItem);
+                        return;
+                      }
                       rej(new Error('Invalid response from server.'));
                     }
+                  } else if (xhr.status === 404) {
+                    isStaticHostMode = true;
+                    const localItem = await saveUploadedFileLocally(file, folderId, sharingType, clientDevice);
+                    res(localItem);
                   } else {
                     let msg = `Upload failed (${xhr.status})`;
                     try {
@@ -524,7 +592,12 @@ export const api = {
                   }
                 };
 
-                xhr.onerror = () => {
+                xhr.onerror = async () => {
+                  if (checkIsStaticHost() || isStaticHostMode || !navigator.onLine) {
+                    const localItem = await saveUploadedFileLocally(file, folderId, sharingType, clientDevice);
+                    res(localItem);
+                    return;
+                  }
                   rej(new Error('Network connection error during upload. Please check your connection and retry.'));
                 };
                 xhr.onabort = () => rej(new Error('Upload cancelled by user.'));

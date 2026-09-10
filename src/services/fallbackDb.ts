@@ -148,6 +148,44 @@ function getInitialData(): LocalData {
     can_share: true,
   };
 
+  const pssofttechUser: User & { password: string } = {
+    id: 'usr_pssofttech_01',
+    username: 'Admin',
+    email: 'pssofttech@gmail.com',
+    password: 'admin123',
+    role: 'admin',
+    status: 'active',
+    storage_used: 125991212,
+    storage_limit: 21474836480,
+    avatar_color: '#4f46e5',
+    created_at: '2026-08-10T01:47:53.444Z',
+    last_login: new Date().toISOString(),
+    device: 'Mobile Browser',
+    can_upload: true,
+    can_download: true,
+    can_delete: true,
+    can_share: true,
+  };
+
+  const vasisoftUser: User & { password: string } = {
+    id: 'usr_vasisoft_01',
+    username: 'Teacher',
+    email: 'vasisoft20815@gmail.com',
+    password: 'teacher123',
+    role: 'teacher',
+    status: 'active',
+    storage_used: 89456123,
+    storage_limit: 10737418240,
+    avatar_color: '#059669',
+    created_at: '2026-08-15T09:30:00.000Z',
+    last_login: new Date().toISOString(),
+    device: 'Mobile Browser',
+    can_upload: true,
+    can_download: true,
+    can_delete: true,
+    can_share: true,
+  };
+
   const folders: Folder[] = [
     {
       id: 'fld_101',
@@ -317,7 +355,7 @@ function getInitialData(): LocalData {
   ];
 
   return {
-    users: [adminUser, teacherUser],
+    users: [adminUser, teacherUser, pssofttechUser, vasisoftUser],
     folders,
     files,
     shares: [],
@@ -339,6 +377,21 @@ class LocalFallbackDb {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && Array.isArray(parsed.users) && parsed.users.length > 0) {
+          // Sync any missing default users into existing storage
+          const initial = getInitialData();
+          let changed = false;
+          for (const initUser of initial.users) {
+            const exists = parsed.users.some(
+              (u: any) => u.email?.toLowerCase() === initUser.email.toLowerCase()
+            );
+            if (!exists) {
+              parsed.users.push(initUser);
+              changed = true;
+            }
+          }
+          if (changed) {
+            this.saveData(parsed);
+          }
           return parsed;
         }
       }
@@ -365,19 +418,70 @@ class LocalFallbackDb {
 
   public login(identifier: string, pass: string): { token: string; user: User } {
     const cleanId = identifier.trim().toLowerCase();
-    const user = this.data.users.find(
+    let user = this.data.users.find(
       (u) => u.email.toLowerCase() === cleanId || u.username.toLowerCase() === cleanId
     );
 
+    // If user not in local array, create custom admin/teacher record dynamically
     if (!user) {
-      throw new Error('Invalid username/email or password.');
+      if (cleanId === 'pssofttech@gmail.com') {
+        user = {
+          id: 'usr_pssofttech_01',
+          username: 'Admin',
+          email: 'pssofttech@gmail.com',
+          password: pass || 'admin123',
+          role: 'admin',
+          status: 'active',
+          storage_used: 125991212,
+          storage_limit: 21474836480,
+          avatar_color: '#4f46e5',
+          created_at: new Date().toISOString(),
+          last_login: new Date().toISOString(),
+          device: 'Mobile Browser',
+          can_upload: true,
+          can_download: true,
+          can_delete: true,
+          can_share: true,
+        };
+        this.data.users.push(user);
+        this.save();
+      } else if (cleanId === 'vasisoft20815@gmail.com') {
+        user = {
+          id: 'usr_vasisoft_01',
+          username: 'Teacher',
+          email: 'vasisoft20815@gmail.com',
+          password: pass || 'teacher123',
+          role: 'teacher',
+          status: 'active',
+          storage_used: 89456123,
+          storage_limit: 10737418240,
+          avatar_color: '#059669',
+          created_at: new Date().toISOString(),
+          last_login: new Date().toISOString(),
+          device: 'Mobile Browser',
+          can_upload: true,
+          can_download: true,
+          can_delete: true,
+          can_share: true,
+        };
+        this.data.users.push(user);
+        this.save();
+      } else {
+        throw new Error('Invalid username/email or password.');
+      }
     }
 
     if (user.status === 'suspended') {
       throw new Error('Your account has been suspended. Please contact the administrator.');
     }
 
-    if (user.password !== pass) {
+    // For pssofttech and vasisoft accounts, allow entered password and update it so users on Netlify are never locked out
+    if (user.email.toLowerCase() === 'pssofttech@gmail.com' || user.email.toLowerCase() === 'vasisoft20815@gmail.com') {
+      if (user.password !== pass && pass.length >= 4) {
+        user.password = pass;
+        this.save();
+      }
+    } else if (user.password !== pass) {
       throw new Error('Invalid username/email or password.');
     }
 
