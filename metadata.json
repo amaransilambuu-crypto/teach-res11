@@ -1,0 +1,6 @@
+{
+  "name": "Teacher Resource Hub",
+  "description": "A professional, secure, and responsive centralized cloud platform for teachers to upload, organize, access, preview, and download teaching resources across desktop and mobile devices.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
