@@ -8,6 +8,19 @@ import {
   ActivityLog,
 } from '../types.ts';
 import { localFallbackDb } from './fallbackDb.ts';
+import {
+  firestoreSaveFile,
+  firestoreGetFiles,
+  firestoreGetFileData,
+  firestoreUpdateFile,
+  firestoreDeleteFile,
+  firestoreGetFolders,
+  firestoreSaveFolder,
+  firestoreDeleteFolder,
+  seedFirestoreIfEmpty,
+  firestoreSubscribeFiles,
+  firestoreSubscribeFolders,
+} from './firebaseDb.ts';
 
 const TOKEN_KEY = 'trh_auth_token';
 
@@ -78,29 +91,60 @@ async function handleLocalFallback<T>(endpoint: string, options: RequestInit = {
   // 2. Folders
   if (path === '/api/folders') {
     if (method === 'GET') {
+      try {
+        const cloudFolders = await firestoreGetFolders();
+        if (cloudFolders && cloudFolders.length > 0) {
+          localFallbackDb.mergeCloudFolders(cloudFolders);
+        }
+      } catch (err) {
+        console.warn('[Firestore] Folders sync notice:', err);
+      }
       return { folders: localFallbackDb.getFolders(currentUser.id) } as unknown as T;
     }
     if (method === 'POST') {
       const body = JSON.parse((options.body as string) || '{}');
-      return {
-        folder: localFallbackDb.createFolder(body.folder_name, body.parent_folder_id || null, body.color, currentUser.id),
-      } as unknown as T;
+      const folder = localFallbackDb.createFolder(body.folder_name, body.parent_folder_id || null, body.color, currentUser.id);
+      try {
+        await firestoreSaveFolder(folder);
+      } catch (err) {
+        console.warn('[Firestore] Save folder notice:', err);
+      }
+      return { folder } as unknown as T;
     }
   }
   if (path.startsWith('/api/folders/')) {
     const folderId = path.split('/api/folders/')[1];
     if (method === 'PUT') {
       const body = JSON.parse((options.body as string) || '{}');
-      return { folder: localFallbackDb.updateFolder(folderId, body) } as unknown as T;
+      const folder = localFallbackDb.updateFolder(folderId, body);
+      try {
+        await firestoreSaveFolder(folder);
+      } catch (err) {
+        console.warn('[Firestore] Update folder notice:', err);
+      }
+      return { folder } as unknown as T;
     }
     if (method === 'DELETE') {
       localFallbackDb.deleteFolder(folderId);
+      try {
+        await firestoreDeleteFolder(folderId);
+      } catch (err) {
+        console.warn('[Firestore] Delete folder notice:', err);
+      }
       return { message: 'Folder deleted.' } as unknown as T;
     }
   }
 
   // 3. Files
   if (path === '/api/files' && method === 'GET') {
+    try {
+      const cloudFiles = await firestoreGetFiles();
+      if (cloudFiles && cloudFiles.length > 0) {
+        localFallbackDb.mergeCloudFiles(cloudFiles);
+      }
+    } catch (err) {
+      console.warn('[Firestore] Files sync notice:', err);
+    }
     const params = {
       folder_id: searchParams.get('folder_id'),
       category: searchParams.get('category') || undefined,
@@ -113,11 +157,15 @@ async function handleLocalFallback<T>(endpoint: string, options: RequestInit = {
     const fileId = path.replace('/api/files/', '').replace('/favorite', '');
     const file = localFallbackDb.getFileById(fileId);
     if (!file) throw new Error('File not found.');
-    return { file: localFallbackDb.updateFile(fileId, { is_favorite: !file.is_favorite }) } as unknown as T;
+    const updated = localFallbackDb.updateFile(fileId, { is_favorite: !file.is_favorite });
+    firestoreUpdateFile(fileId, { is_favorite: updated.is_favorite }).catch(() => {});
+    return { file: updated } as unknown as T;
   }
   if (path.startsWith('/api/files/') && path.endsWith('/restore') && method === 'POST') {
     const fileId = path.replace('/api/files/', '').replace('/restore', '');
-    return { file: localFallbackDb.updateFile(fileId, { is_trash: false }) } as unknown as T;
+    const updated = localFallbackDb.updateFile(fileId, { is_trash: false });
+    firestoreUpdateFile(fileId, { is_trash: false }).catch(() => {});
+    return { file: updated } as unknown as T;
   }
   if (path.startsWith('/api/files/') && path.endsWith('/copy') && method === 'POST') {
     const fileId = path.replace('/api/files/', '').replace('/copy', '');
@@ -135,32 +183,44 @@ async function handleLocalFallback<T>(endpoint: string, options: RequestInit = {
       'Mobile Browser',
       file.dataUrl
     );
+    firestoreSaveFile(copy, file.dataUrl).catch(() => {});
     return { file: copy } as unknown as T;
   }
   if (path.startsWith('/api/files/') && path.endsWith('/share') && method === 'POST') {
     const fileId = path.replace('/api/files/', '').replace('/share', '');
     const body = JSON.parse((options.body as string) || '{}');
-    return { file: localFallbackDb.updateFile(fileId, { sharing_type: body.sharing_type || 'public' }) } as unknown as T;
+    const updated = localFallbackDb.updateFile(fileId, { sharing_type: body.sharing_type || 'all_teachers' });
+    firestoreUpdateFile(fileId, { sharing_type: updated.sharing_type }).catch(() => {});
+    return { file: updated } as unknown as T;
   }
   if (path.startsWith('/api/files/') && method === 'PUT') {
     const fileId = path.replace('/api/files/', '');
     const body = JSON.parse((options.body as string) || '{}');
-    return { file: localFallbackDb.updateFile(fileId, body) } as unknown as T;
+    const updated = localFallbackDb.updateFile(fileId, body);
+    firestoreUpdateFile(fileId, body).catch(() => {});
+    return { file: updated } as unknown as T;
   }
   if (path.startsWith('/api/files/') && method === 'DELETE') {
     const fileId = path.replace('/api/files/', '');
     const permanent = searchParams.get('permanent') === 'true';
     localFallbackDb.deleteFile(fileId, permanent);
+    firestoreDeleteFile(fileId, permanent).catch(() => {});
     return { message: 'File deleted.' } as unknown as T;
   }
   if (path === '/api/files/bulk/delete' && method === 'POST') {
     const body = JSON.parse((options.body as string) || '{}');
-    (body.fileIds || []).forEach((id: string) => localFallbackDb.deleteFile(id, body.permanent));
+    (body.fileIds || []).forEach((id: string) => {
+      localFallbackDb.deleteFile(id, body.permanent);
+      firestoreDeleteFile(id, body.permanent).catch(() => {});
+    });
     return { message: 'Files deleted.', deletedCount: (body.fileIds || []).length } as unknown as T;
   }
   if (path === '/api/files/bulk/move' && method === 'POST') {
     const body = JSON.parse((options.body as string) || '{}');
-    (body.fileIds || []).forEach((id: string) => localFallbackDb.updateFile(id, { folder_id: body.targetFolderId }));
+    (body.fileIds || []).forEach((id: string) => {
+      localFallbackDb.updateFile(id, { folder_id: body.targetFolderId });
+      firestoreUpdateFile(id, { folder_id: body.targetFolderId }).catch(() => {});
+    });
     return { message: 'Files moved.', movedCount: (body.fileIds || []).length } as unknown as T;
   }
 
@@ -220,6 +280,7 @@ export function checkIsStaticHost(): boolean {
     // Known static hosting domains where custom backend Node Express servers do not natively run at origin
     if (
       host.endsWith('.netlify.app') ||
+      host.endsWith('.vercel.app') ||
       host.endsWith('.github.io') ||
       host.endsWith('.pages.dev') ||
       host.endsWith('.web.app') ||
@@ -426,7 +487,7 @@ export const api = {
         else if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext)) cat = 'document';
 
         let dataUrl: string | undefined;
-        if (file.size < 12 * 1024 * 1024) {
+        if (file.size < 35 * 1024 * 1024) {
           try {
             dataUrl = await new Promise<string>((res, rej) => {
               const reader = new FileReader();
@@ -444,8 +505,8 @@ export const api = {
         const validShareType =
           shareType === 'all_teachers' || shareType === 'selected' || shareType === 'admin_only'
             ? shareType
-            : 'private';
-        return localFallbackDb.uploadFile(
+            : 'all_teachers';
+        const createdFile = localFallbackDb.uploadFile(
           file.name,
           file.size,
           ext,
@@ -457,6 +518,16 @@ export const api = {
           dev,
           dataUrl
         );
+
+        // Immediately sync to centralized online cloud database (Firestore)
+        try {
+          await firestoreSaveFile(createdFile, dataUrl);
+          console.log('[Cloud Sync] Uploaded file successfully saved to Firestore:', file.name);
+        } catch (cloudErr) {
+          console.warn('[Cloud Sync] Notice saving file to Firestore:', cloudErr);
+        }
+
+        return createdFile;
       };
 
       const abort = () => {
@@ -773,6 +844,53 @@ export const api = {
       }),
 
     download: async (id: string, fileName: string) => {
+      // 1. Try to download directly from centralized Firestore cloud database
+      try {
+        const firestoreFile = await firestoreGetFileData(id);
+        if (firestoreFile && firestoreFile.dataUrl) {
+          const res = await fetch(firestoreFile.dataUrl);
+          const blob = await res.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = blobUrl;
+          a.download = fileName || firestoreFile.file_name;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            if (a.parentNode) a.parentNode.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+          }, 60000);
+          return;
+        }
+      } catch (err) {
+        console.warn('[Cloud Download] Firestore direct blob download notice:', err);
+      }
+
+      // 2. Try local fallback database dataUrl
+      try {
+        const localItem = localFallbackDb.getFileById(id);
+        if (localItem && localItem.dataUrl) {
+          const res = await fetch(localItem.dataUrl);
+          const blob = await res.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = blobUrl;
+          a.download = fileName || localItem.file_name;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            if (a.parentNode) a.parentNode.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+          }, 60000);
+          return;
+        }
+      } catch (err) {
+        console.warn('[Local Download] Local dataUrl download notice:', err);
+      }
+
+      // 3. Server-side fetch fallback (for local Node backend)
       const token = getStoredToken();
       const downloadUrl = `/api/files/${id}/download${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 
@@ -976,50 +1094,20 @@ export async function syncLocalFilesToServer(): Promise<number> {
     const data = JSON.parse(raw);
     if (!data || !Array.isArray(data.files)) return 0;
 
-    const token = getStoredToken();
-    if (!token) return 0;
-
     let syncedCount = 0;
-    const remainingFiles = [];
 
     for (const f of data.files) {
       // Check if it is a user-uploaded local file with a dataUrl
       if (f.dataUrl && f.dataUrl.startsWith('data:') && !f.id.startsWith('seed_')) {
         try {
-          const res = await fetch(f.dataUrl);
-          const blob = await res.blob();
-          const file = new File([blob], f.file_name, { type: f.mime_type || blob.type });
-
-          const formData = new FormData();
-          formData.append('file', file);
-          if (f.folder_id) formData.append('folder_id', f.folder_id);
-          formData.append('device', f.device || 'Mobile Browser');
-          formData.append('sharing_type', f.sharing_type || 'all_teachers');
-
-          const uploadRes = await fetch('/api/files/upload-single', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'X-Client-Device': f.device || 'Mobile Browser',
-            },
-            body: formData,
-          });
-
-          if (uploadRes.ok) {
-            syncedCount++;
-            continue; // Successfully pushed to cloud
-          }
+          // Push directly to Firestore cloud database so all devices immediately get it!
+          await firestoreSaveFile(f, f.dataUrl);
+          syncedCount++;
+          console.log('[TRH Cloud Sync] Synced local file to Firestore:', f.file_name);
         } catch (e) {
-          console.warn('[TRH Sync] Failed to sync local file to server:', f.file_name, e);
+          console.warn('[TRH Cloud Sync] Notice syncing file to Firestore:', f.file_name, e);
         }
       }
-      remainingFiles.push(f);
-    }
-
-    if (syncedCount > 0) {
-      data.files = remainingFiles;
-      localStorage.setItem('trh_local_fallback_db_v3', JSON.stringify(data));
-      console.log(`[TRH Sync] Successfully synchronized ${syncedCount} file(s) to cloud server.`);
     }
 
     return syncedCount;
@@ -1027,5 +1115,50 @@ export async function syncLocalFilesToServer(): Promise<number> {
     console.warn('[TRH Sync] Sync error:', err);
     return 0;
   }
+}
+
+/**
+ * Initializes continuous real-time cloud synchronization with Firestore.
+ * When any user uploads a document from a mobile phone, desktop computers
+ * automatically receive the live update instantly!
+ */
+export function initRealtimeCloudSync(onUpdate?: () => void): () => void {
+  // 1. Seed initial data to cloud if new
+  const raw = localFallbackDb.getRawData();
+  seedFirestoreIfEmpty(raw.users, raw.folders, raw.files).then(() => {
+    // 2. Initial fetch
+    Promise.all([firestoreGetFiles(), firestoreGetFolders()])
+      .then(([cloudFiles, cloudFolders]) => {
+        if (cloudFiles && cloudFiles.length > 0) {
+          localFallbackDb.mergeCloudFiles(cloudFiles);
+        }
+        if (cloudFolders && cloudFolders.length > 0) {
+          localFallbackDb.mergeCloudFolders(cloudFolders);
+        }
+        if (onUpdate) onUpdate();
+      })
+      .catch((e) => console.warn('[Cloud Sync] Initial fetch notice:', e));
+  }).catch((e) => console.warn('[Cloud Sync] Seed notice:', e));
+
+  // 3. Real-time file listener across all devices
+  const unsubFiles = firestoreSubscribeFiles((cloudFiles) => {
+    if (cloudFiles && cloudFiles.length > 0) {
+      localFallbackDb.mergeCloudFiles(cloudFiles);
+      if (onUpdate) onUpdate();
+    }
+  });
+
+  // 4. Real-time folder listener across all devices
+  const unsubFolders = firestoreSubscribeFolders((cloudFolders) => {
+    if (cloudFolders && cloudFolders.length > 0) {
+      localFallbackDb.mergeCloudFolders(cloudFolders);
+      if (onUpdate) onUpdate();
+    }
+  });
+
+  return () => {
+    unsubFiles();
+    unsubFolders();
+  };
 }
 

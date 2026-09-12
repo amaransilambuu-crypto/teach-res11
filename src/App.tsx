@@ -20,7 +20,7 @@ import { AdminSecurityView } from './components/AdminSecurityView.tsx';
 import { SettingsView } from './components/SettingsView.tsx';
 import { AboutView } from './components/AboutView.tsx';
 import { FileItem, Folder, UserStats, ViewTab } from './types.ts';
-import { api, syncLocalFilesToServer } from './services/api.ts';
+import { api, syncLocalFilesToServer, initRealtimeCloudSync } from './services/api.ts';
 import { Loader2, Trash2, Check, AlertCircle, RotateCcw } from 'lucide-react';
 
 const MainApp: React.FC = () => {
@@ -57,9 +57,9 @@ const MainApp: React.FC = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Feedback Toast Notification State
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => {
       setToastMessage(null);
@@ -112,6 +112,19 @@ const MainApp: React.FC = () => {
         });
     }
   }, [isAuthenticated, currentFolderId, currentTab]);
+
+  // Real-time continuous cross-device synchronization with Firestore online cloud database
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const cleanupRealtimeSync = initRealtimeCloudSync(() => {
+      refreshAllData(currentTab, currentFolderId);
+    });
+
+    return () => {
+      cleanupRealtimeSync();
+    };
+  }, [isAuthenticated, currentTab, currentFolderId]);
 
   // Periodic background sync and focus event listener for instant cross-device updates
   useEffect(() => {
@@ -191,8 +204,13 @@ const MainApp: React.FC = () => {
   }, [files, currentTab, searchTerm, user]);
 
   // Actions
-  const handleDownloadFile = (file: FileItem) => {
-    api.files.download(file.id, file.file_name);
+  const handleDownloadFile = async (file: FileItem) => {
+    showToast(`Downloading "${file.file_name}"...`, 'info');
+    try {
+      await api.files.download(file.id, file.file_name);
+    } catch {
+      showToast('Download failed. Please check network connection.', 'error');
+    }
   };
 
   const handleToggleFavorite = async (file: FileItem) => {
@@ -639,11 +657,15 @@ const MainApp: React.FC = () => {
           className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl shadow-lg border text-xs font-semibold flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-2 ${
             toastMessage.type === 'error'
               ? 'bg-red-50 text-red-700 border-red-200'
+              : toastMessage.type === 'info'
+              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
               : 'bg-emerald-50 text-emerald-700 border-emerald-200'
           }`}
         >
           {toastMessage.type === 'error' ? (
             <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+          ) : toastMessage.type === 'info' ? (
+            <Loader2 className="w-4 h-4 text-indigo-600 animate-spin flex-shrink-0" />
           ) : (
             <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           )}

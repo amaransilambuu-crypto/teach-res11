@@ -152,19 +152,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Controls */}
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* Cross-Device Indicator Badge */}
+            {/* Cross-Device Cloud Sync Indicator Badge */}
             <div
               id="device-sync-badge"
-              title={`Active on ${currentDevice} • Syncing with central cloud storage`}
-              className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200/80"
+              title={`Active on ${currentDevice} • Live synced with Firestore online cloud database across Mobile & Desktop`}
+              className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-medium border border-emerald-200"
             >
               {isMobileDevice ? (
-                <Smartphone className="w-3.5 h-3.5 text-blue-600" />
+                <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
               ) : (
-                <Laptop className="w-3.5 h-3.5 text-indigo-600" />
+                <Laptop className="w-3.5 h-3.5 text-emerald-600" />
               )}
-              <span>{currentDevice}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="truncate max-w-[110px]">{currentDevice}</span>
+              <span className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider hidden lg:inline">Cloud Synced</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             </div>
 
             {/* Quick Upload Button */}

@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile in the educational resource portal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "teacher"] },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "storage_used": { "type": "number" },
+        "storage_limit": { "type": "number" },
+        "avatar_color": { "type": "string" },
+        "created_at": { "type": "string" },
+        "last_login": { "type": "string" },
+        "device": { "type": "string" }
+      },
+      "required": ["id", "username", "email", "role"]
+    },
+    "Folder": {
+      "title": "Folder",
+      "description": "Folder resource hierarchy",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "folder_name": { "type": "string", "maxLength": 200 },
+        "parent_folder_id": { "type": "string" },
+        "color": { "type": "string" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "folder_name", "created_at"]
+    },
+    "FileItem": {
+      "title": "FileItem",
+      "description": "Educational resource or file item metadata and content for cross-device sync",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "owner_name": { "type": "string" },
+        "owner_email": { "type": "string" },
+        "folder_id": { "type": "string" },
+        "file_name": { "type": "string", "maxLength": 255 },
+        "file_type": { "type": "string" },
+        "file_size": { "type": "number" },
+        "mime_type": { "type": "string" },
+        "storage_path": { "type": "string" },
+        "device": { "type": "string" },
+        "sharing_type": { "type": "string", "enum": ["private", "selected", "all_teachers", "admin_only"] },
+        "is_favorite": { "type": "boolean" },
+        "is_trash": { "type": "boolean" },
+        "uploaded_at": { "type": "string" },
+        "updated_at": { "type": "string" },
+        "description": { "type": "string", "maxLength": 1000 },
+        "dataUrl": { "type": "string" }
+      },
+      "required": ["id", "user_id", "file_name", "file_size", "uploaded_at"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles collection"
+    },
+    "/folders/{folderId}": {
+      "schema": "Folder",
+      "description": "Folders collection shared across devices"
+    },
+    "/files/{fileId}": {
+      "schema": "FileItem",
+      "description": "Files and resources collection synced across devices"
+    }
+  }
+}

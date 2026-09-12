@@ -768,6 +768,39 @@ class LocalFallbackDb {
   public getNotifications(userId: string): NotificationItem[] {
     return this.data.notifications.filter((n) => n.user_id === userId);
   }
+
+  public mergeCloudFiles(cloudFiles: FileItem[]) {
+    if (!cloudFiles || cloudFiles.length === 0) return;
+    for (const cloudFile of cloudFiles) {
+      const idx = this.data.files.findIndex((f) => f.id === cloudFile.id);
+      if (idx >= 0) {
+        this.data.files[idx] = {
+          ...cloudFile,
+          dataUrl: this.data.files[idx].dataUrl || (cloudFile as any).dataUrl,
+        };
+      } else {
+        this.data.files.unshift(cloudFile);
+      }
+    }
+    this.save();
+  }
+
+  public mergeCloudFolders(cloudFolders: Folder[]) {
+    if (!cloudFolders || cloudFolders.length === 0) return;
+    for (const cf of cloudFolders) {
+      const idx = this.data.folders.findIndex((f) => f.id === cf.id);
+      if (idx >= 0) {
+        this.data.folders[idx] = cf;
+      } else {
+        this.data.folders.push(cf);
+      }
+    }
+    this.save();
+  }
+
+  public getRawData(): LocalData {
+    return this.data;
+  }
 }
 
 export const localFallbackDb = new LocalFallbackDb();
