@@ -20,8 +20,10 @@ import {
   BarChart3,
   ShieldAlert,
   X,
+  Palette,
 } from 'lucide-react';
 import { UserStats, ViewTab } from '../types.ts';
+import { useInstitutionTheme } from '../context/ThemeContext.tsx';
 import { formatBytes } from '../utils/format.ts';
 
 interface SidebarProps {
@@ -42,6 +44,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   stats,
 }) => {
   const { isAdmin } = useAuth();
+  const { theme, isDarkBrand, contrastTextColor, openSettingsModal, schoolName } =
+    useInstitutionTheme();
 
   const primaryNavItems: Array<{ id: ViewTab; label: string; icon: React.ReactNode; isAction?: boolean }> = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -83,22 +87,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const storagePercentage = Math.min(100, Math.round((storageUsed / storageLimit) * 100));
 
   const navContent = (
-    <div className="flex flex-col h-full bg-white">
+    <div
+      className="flex flex-col h-full no-scrollbar transition-colors duration-200"
+      style={{ backgroundColor: theme.primary_color }}
+    >
       {/* Brand Header */}
-      <div className="p-6 border-b border-slate-100 flex-shrink-0">
+      <div
+        className="px-5 py-4 border-b flex-shrink-0"
+        style={{ borderColor: isDarkBrand ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }}
+      >
         <div className="flex items-center gap-2.5 mb-1 cursor-pointer" onClick={() => onSelectTab('dashboard')}>
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-indigo-200">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg shadow-xs"
+            style={{
+              backgroundColor: isDarkBrand ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+              color: contrastTextColor,
+            }}
+          >
             T
           </div>
-          <h1 className="font-bold text-lg text-slate-800 tracking-tight">Resource Hub</h1>
+          <h1
+            className="font-bold text-lg tracking-tight truncate max-w-[170px]"
+            style={{ color: contrastTextColor }}
+          >
+            {schoolName || 'Resource Hub'}
+          </h1>
         </div>
-        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold pl-0.5">
+        <p
+          className="text-[10px] uppercase tracking-widest font-semibold pl-0.5 opacity-75"
+          style={{ color: contrastTextColor }}
+        >
           Education Central
         </p>
       </div>
 
       {/* Upload Call to Action */}
-      <div className="px-4 pt-4 pb-2">
+      <div className="px-4 py-2.5">
         <button
           id="sidebar-primary-upload-btn"
           type="button"
@@ -106,7 +130,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onOpenUpload();
             onCloseMobile();
           }}
-          className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-sm shadow-indigo-200 transition-all hover:scale-[1.01]"
+          style={{
+            backgroundColor: isDarkBrand ? '#ffffff' : '#0f172a',
+            color: isDarkBrand ? '#0f172a' : '#ffffff',
+          }}
+          className="w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-xl font-bold text-xs shadow-sm transition-all hover:opacity-90 hover:scale-[1.01] cursor-pointer"
         >
           <UploadCloud className="w-4 h-4" />
           <span>Upload New Resource</span>
@@ -114,8 +142,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
-        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">
+      <nav
+        id="resource-hub-navigation"
+        className="flex-1 overflow-y-auto no-scrollbar navigation-no-scrollbar px-4 py-1.5 space-y-0.5"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        <div
+          className="text-[10px] font-bold uppercase tracking-wider mb-1.5 px-2 opacity-70"
+          style={{ color: contrastTextColor }}
+        >
           Navigation
         </div>
         {primaryNavItems.map((item) => {
@@ -126,13 +161,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
               id={`nav-${item.id}-btn`}
               type="button"
               onClick={() => handleItemClick(item)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md font-medium text-xs transition-colors ${
+              style={
                 isActive
-                  ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? {
+                      backgroundColor: isDarkBrand ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)',
+                      color: contrastTextColor,
+                    }
+                  : { color: contrastTextColor }
+              }
+              className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors cursor-pointer ${
+                isActive
+                  ? 'font-bold shadow-xs'
+                  : 'opacity-85 hover:opacity-100 hover:bg-white/10'
               }`}
             >
-              <span className={isActive ? 'text-indigo-600' : 'text-slate-400'}>
+              <span style={{ color: contrastTextColor }}>
                 {item.icon}
               </span>
               <span>{item.label}</span>
@@ -140,7 +183,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
 
-        <div className="pt-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">
+        <div
+          className="pt-3 text-[10px] font-bold uppercase tracking-wider mb-1.5 px-2 opacity-70"
+          style={{ color: contrastTextColor }}
+        >
           Libraries
         </div>
         {libraryNavItems.map((item) => {
@@ -151,13 +197,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
               id={`nav-${item.id}-btn`}
               type="button"
               onClick={() => handleItemClick(item)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md font-medium text-xs transition-colors ${
+              style={
                 isActive
-                  ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? {
+                      backgroundColor: isDarkBrand ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)',
+                      color: contrastTextColor,
+                    }
+                  : { color: contrastTextColor }
+              }
+              className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors cursor-pointer ${
+                isActive
+                  ? 'font-bold shadow-xs'
+                  : 'opacity-85 hover:opacity-100 hover:bg-white/10'
               }`}
             >
-              <span className={isActive ? 'text-indigo-600' : 'text-slate-400'}>
+              <span style={{ color: contrastTextColor }}>
                 {item.icon}
               </span>
               <span>{item.label}</span>
@@ -165,10 +219,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
 
+        {/* Brand Theme Selector Quick Action in Sidebar */}
+        <button
+          id="nav-brand-theme-btn"
+          type="button"
+          onClick={() => {
+            openSettingsModal('theme');
+            onCloseMobile();
+          }}
+          style={{ color: contrastTextColor }}
+          className="w-full flex items-center gap-3 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors opacity-85 hover:opacity-100 hover:bg-white/10 cursor-pointer"
+        >
+          <span style={{ color: contrastTextColor }}>
+            <Palette className="w-4 h-4" />
+          </span>
+          <span>School Theme</span>
+        </button>
+
         {/* Admin Navigation Section */}
         {isAdmin && (
-          <div className="pt-4 mt-2 border-t border-slate-100 space-y-1">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">
+          <div
+            className="pt-3 mt-1.5 border-t space-y-0.5"
+            style={{ borderColor: isDarkBrand ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }}
+          >
+            <div
+              className="text-[10px] font-bold uppercase tracking-wider mb-1.5 px-2 opacity-70"
+              style={{ color: contrastTextColor }}
+            >
               Administration
             </div>
             {adminNavItems.map((item) => {
@@ -182,13 +259,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onSelectTab(item.id);
                     onCloseMobile();
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md font-medium text-xs transition-colors ${
+                  style={
                     isActive
-                      ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      ? {
+                          backgroundColor: isDarkBrand ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)',
+                          color: contrastTextColor,
+                        }
+                      : { color: contrastTextColor }
+                  }
+                  className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors cursor-pointer ${
+                    isActive
+                      ? 'font-bold shadow-xs'
+                      : 'opacity-85 hover:opacity-100 hover:bg-white/10'
                   }`}
                 >
-                  <span className={isActive ? 'text-indigo-600' : 'text-slate-400'}>
+                  <span style={{ color: contrastTextColor }}>
                     {item.icon}
                   </span>
                   <span>{item.label}</span>
@@ -199,22 +284,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </nav>
 
-      {/* Storage & Live Sync Footer (Professional Polish layout) */}
-      <div className="p-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
+      {/* Storage & Live Sync Footer */}
+      <div
+        className="p-4 border-t flex-shrink-0"
+        style={{
+          backgroundColor: isDarkBrand ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.6)',
+          borderColor: isDarkBrand ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+        }}
+      >
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-500">Storage</span>
-          <span className="text-xs font-bold text-slate-700">{storagePercentage}%</span>
+          <span className="text-xs font-semibold opacity-75" style={{ color: contrastTextColor }}>
+            Storage
+          </span>
+          <span className="text-xs font-bold" style={{ color: contrastTextColor }}>
+            {storagePercentage}%
+          </span>
         </div>
-        <div className="w-full bg-slate-200 rounded-full h-1.5 mb-2 overflow-hidden">
+        <div
+          className={`w-full rounded-full h-1.5 mb-2 overflow-hidden ${
+            isDarkBrand ? 'bg-white/20' : 'bg-black/15'
+          }`}
+        >
           <div
-            className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300"
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              isDarkBrand ? 'bg-white' : 'bg-indigo-600'
+            }`}
             style={{ width: `${Math.max(2, storagePercentage)}%` }}
           />
         </div>
-        <div className="flex items-center justify-between text-[10px] text-slate-400">
+        <div
+          className="flex items-center justify-between text-[10px] opacity-75"
+          style={{ color: contrastTextColor }}
+        >
           <span>{formatBytes(storageUsed)} of {formatBytes(storageLimit)} used</span>
-          <span className="inline-flex items-center text-emerald-600 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse" />
+          <span className="inline-flex items-center font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse" />
             Live Sync
           </span>
         </div>
@@ -227,7 +331,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Desktop Sidebar (Permanent) */}
       <aside
         id="desktop-sidebar"
-        className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 h-[calc(100vh-4rem)] sticky top-16 flex-shrink-0 z-20"
+        className="hidden lg:flex flex-col w-64 border-r h-[calc(100vh-4rem)] sticky top-16 flex-shrink-0 z-20 no-scrollbar overflow-hidden transition-colors duration-200"
+        style={{
+          backgroundColor: theme.primary_color,
+          borderColor: isDarkBrand ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+        }}
       >
         {navContent}
       </aside>
@@ -237,23 +345,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="fixed inset-0 z-50 lg:hidden">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
             onClick={onCloseMobile}
           />
 
           {/* Drawer content */}
-          <div className="fixed inset-y-0 left-0 w-72 max-w-full bg-white shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <span className="font-bold text-slate-900 text-sm">Navigation</span>
+          <div
+            className="fixed inset-y-0 left-0 w-72 max-w-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200 no-scrollbar border-r transition-colors"
+            style={{
+              backgroundColor: theme.primary_color,
+              borderColor: isDarkBrand ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+            }}
+          >
+            <div
+              className="p-4 border-b flex items-center justify-between flex-shrink-0"
+              style={{ borderColor: isDarkBrand ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }}
+            >
+              <span className="font-bold text-sm" style={{ color: contrastTextColor }}>
+                Navigation
+              </span>
               <button
                 type="button"
                 onClick={onCloseMobile}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                style={{ color: contrastTextColor }}
+                className="p-1.5 rounded-lg hover:bg-white/10"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto">{navContent}</div>
+            <div
+              className="flex-1 overflow-y-auto no-scrollbar navigation-no-scrollbar"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {navContent}
+            </div>
           </div>
         </div>
       )}

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="hubBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4338ca"/>
+      <stop offset="50%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background Rounded Canvas with 15% Safe Margin -->
+  <rect width="512" height="512" rx="112" fill="url(#hubBg)"/>
+
+  <!-- Subtle glow inner container -->
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+
+  <!-- Central Icon Group (Teacher Hub: Graduation Cap + Open Book + Cloud Star) -->
+  <g filter="url(#shadow)" transform="translate(0, -10)">
+    <!-- Graduation Cap Rhombus Top -->
+    <polygon points="256,120 400,180 256,240 112,180" fill="#ffffff"/>
+    <!-- Graduation Cap Under-Brim -->
+    <path d="M160,200 L160,265 C160,295 200,315 256,315 C312,315 352,295 352,265 L352,200 L256,240 Z" fill="#e0e7ff"/>
+    <!-- Cap Tassel Ribbon -->
+    <path d="M370,192 C375,230 385,255 385,285" fill="none" stroke="#fcd34d" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="385" cy="292" r="10" fill="#f59e0b"/>
+
+    <!-- Open Book Pages (Center Bottom) -->
+    <path d="M120,330 C175,320 220,335 256,350 C292,335 337,320 392,330 L392,400 C337,390 292,405 256,420 C220,405 175,390 120,400 Z" fill="#ffffff" opacity="0.95"/>
+    <path d="M256,350 L256,420" stroke="#4f46e5" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- Book Page Lines -->
+    <line x1="150" y1="352" x2="230" y2="362" stroke="#a5b4fc" stroke-width="4" stroke-linecap="round"/>
+    <line x1="150" y1="372" x2="225" y2="382" stroke="#a5b4fc" stroke-width="4" stroke-linecap="round"/>
+    <line x1="282" y1="362" x2="362" y2="352" stroke="#a5b4fc" stroke-width="4" stroke-linecap="round"/>
+    <line x1="287" y1="382" x2="362" y2="372" stroke="#a5b4fc" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <!-- Sparkle Accent in Emerald -->
+  <polygon points="410,110 416,128 434,134 416,140 410,158 404,140 386,134 404,128" fill="url(#accent)"/>
+</svg>

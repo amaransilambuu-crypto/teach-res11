@@ -14,6 +14,7 @@ import {
 import { Folder } from '../types.ts';
 import { api, detectDevice } from '../services/api.ts';
 import { formatBytes } from '../utils/format.ts';
+import { pendingSyncManager } from '../services/pendingSyncManager.ts';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -93,6 +94,52 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         ? selectedFiles[0].name
         : `${selectedFiles[0].name} + ${selectedFiles.length - 1} other(s)`;
 
+    // Check if offline/disconnected
+    if (!navigator.onLine) {
+      setUploadState({
+        filename: mainFileName,
+        percentage: 50,
+        loadedBytes: Math.floor(totalBytes / 2),
+        totalBytes,
+        speedBytesPerSec: 0,
+        remainingSeconds: 0,
+        isUploading: true,
+      });
+
+      const targetFolder = folders.find((f) => f.id === targetFolderId);
+      pendingSyncManager
+        .queueFilesForOfflineUpload(selectedFiles, targetFolderId, sharingType, targetFolder?.folder_name)
+        .then(() => {
+          setUploadState({
+            filename: mainFileName,
+            percentage: 100,
+            loadedBytes: totalBytes,
+            totalBytes,
+            speedBytesPerSec: 0,
+            remainingSeconds: 0,
+            isUploading: false,
+            success: true,
+          });
+          setTimeout(() => {
+            onUploadSuccess();
+            handleClose();
+          }, 1400);
+        })
+        .catch((err) => {
+          setUploadState({
+            filename: mainFileName,
+            percentage: 0,
+            loadedBytes: 0,
+            totalBytes,
+            speedBytesPerSec: 0,
+            remainingSeconds: 0,
+            isUploading: false,
+            error: err.message || 'Offline queueing failed.',
+          });
+        });
+      return;
+    }
+
     setUploadState({
       filename: mainFileName,
       percentage: 0,
@@ -139,6 +186,23 @@ export const UploadModal: React.FC<UploadModalProps> = ({
       .catch((err: Error) => {
         setUploadState((prev) => (prev ? { ...prev, isUploading: false, error: err.message } : null));
       });
+  };
+
+  const handleQueueOffline = async () => {
+    const targetFolder = folders.find((f) => f.id === targetFolderId);
+    await pendingSyncManager.queueFilesForOfflineUpload(
+      selectedFiles,
+      targetFolderId,
+      sharingType,
+      targetFolder?.folder_name
+    );
+    setUploadState((prev) =>
+      prev ? { ...prev, isUploading: false, success: true, error: undefined, percentage: 100 } : null
+    );
+    setTimeout(() => {
+      onUploadSuccess();
+      handleClose();
+    }, 1400);
   };
 
   const handleCancel = () => {
@@ -239,19 +303,30 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
             {/* Error banner & Retry */}
             {uploadState.error && (
-              <div className="p-2.5 bg-red-950/80 border border-red-800 rounded-lg text-red-200 text-xs flex items-center justify-between">
+              <div className="p-2.5 bg-red-950/80 border border-red-800 rounded-lg text-red-200 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="flex items-center space-x-1.5 truncate mr-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
                   <span className="truncate">{uploadState.error}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleRetry}
-                  className="px-2 py-1 bg-red-800 hover:bg-red-700 text-white rounded font-medium text-2xs flex items-center flex-shrink-0"
-                >
-                  <RotateCw className="w-3 h-3 mr-1" />
-                  Retry
-                </button>
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleQueueOffline}
+                    className="px-2 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded font-medium text-2xs flex items-center"
+                    title="Store locally and queue for upload when reconnected"
+                  >
+                    <UploadCloud className="w-3 h-3 mr-1" />
+                    Queue for Offline Sync
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRetry}
+                    className="px-2 py-1 bg-red-800 hover:bg-red-700 text-white rounded font-medium text-2xs flex items-center"
+                  >
+                    <RotateCw className="w-3 h-3 mr-1" />
+                    Retry
+                  </button>
+                </div>
               </div>
             )}
 

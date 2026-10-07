@@ -19,6 +19,7 @@ import {
 import { getAuth } from 'firebase/auth';
 import { firebaseConfig } from './firebaseConfig';
 import { FileItem, Folder, User } from '../types';
+import { recordSuccessfulCloudSync, setCloudSyncStatus } from './cloudSyncTracker';
 
 // Initialize Firebase App singleton
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -58,10 +59,12 @@ export async function testFirestoreConnection(): Promise<boolean> {
   try {
     await getDocFromServer(doc(db, 'test_conn', 'ping'));
     console.log('[Firestore] Connected successfully to cloud database:', firebaseConfig.firestoreDatabaseId);
+    recordSuccessfulCloudSync();
     return true;
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
       console.warn('[Firestore] Client is offline, cached data will be used.');
+      setCloudSyncStatus('offline');
     } else {
       console.warn('[Firestore] Connection test notice:', error);
     }
@@ -87,6 +90,7 @@ export async function firestoreSaveUser(user: User): Promise<void> {
       ...user,
       updated_at: new Date().toISOString(),
     }, { merge: true });
+    recordSuccessfulCloudSync();
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -97,6 +101,7 @@ export async function firestoreGetUserByEmail(email: string): Promise<User | nul
   try {
     const q = query(collection(db, 'users'), where('email', '==', email.trim().toLowerCase()));
     const snap = await getDocs(q);
+    recordSuccessfulCloudSync();
     if (snap.empty) return null;
     return snap.docs[0].data() as User;
   } catch (err) {
@@ -109,11 +114,68 @@ export async function firestoreGetUsers(): Promise<User[]> {
   const path = 'users';
   try {
     const snap = await getDocs(collection(db, 'users'));
+    recordSuccessfulCloudSync();
     return snap.docs.map((d) => d.data() as User);
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, path);
     return [];
   }
+}
+
+export async function firestoreBulkSaveUsers(users: User[]): Promise<number> {
+  const path = 'users';
+  try {
+    const batch = writeBatch(db);
+    let count = 0;
+    for (const u of users) {
+      const userRef = doc(db, 'users', u.id);
+      batch.set(
+        userRef,
+        {
+          ...u,
+          updated_at: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+      count++;
+    }
+    await batch.commit();
+    recordSuccessfulCloudSync();
+    return count;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+    return 0;
+  }
+}
+
+/**
+ * Real-time listener: triggers whenever any teacher or user is registered or updated.
+ * Informs active admin sessions of newly registered or pre-registered staff accounts in real time.
+ */
+export function firestoreSubscribeUsers(
+  callback: (users: User[], changes: { added: User[]; isInitial: boolean }) => void
+): Unsubscribe {
+  let isInitial = true;
+  return onSnapshot(
+    collection(db, 'users'),
+    (snapshot) => {
+      const users = snapshot.docs.map((d) => d.data() as User);
+      const added: User[] = [];
+      if (!isInitial) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            added.push(change.doc.data() as User);
+          }
+        });
+      }
+      recordSuccessfulCloudSync();
+      callback(users, { added, isInitial });
+      isInitial = false;
+    },
+    (err) => {
+      console.warn('[Firestore] Users subscription notice:', err.message);
+    }
+  );
 }
 
 // ==========================================
@@ -124,6 +186,7 @@ export async function firestoreGetFolders(): Promise<Folder[]> {
   const path = 'folders';
   try {
     const snap = await getDocs(collection(db, 'folders'));
+    recordSuccessfulCloudSync();
     return snap.docs.map((d) => d.data() as Folder);
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, path);
@@ -135,6 +198,7 @@ export async function firestoreSaveFolder(folder: Folder): Promise<void> {
   const path = `folders/${folder.id}`;
   try {
     await setDoc(doc(db, 'folders', folder.id), folder, { merge: true });
+    recordSuccessfulCloudSync();
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -144,6 +208,7 @@ export async function firestoreDeleteFolder(folderId: string): Promise<void> {
   const path = `folders/${folderId}`;
   try {
     await deleteDoc(doc(db, 'folders', folderId));
+    recordSuccessfulCloudSync();
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
@@ -155,6 +220,7 @@ export function firestoreSubscribeFolders(callback: (folders: Folder[]) => void)
     collection(db, 'folders'),
     (snapshot) => {
       const folders = snapshot.docs.map((d) => d.data() as Folder);
+      recordSuccessfulCloudSync();
       callback(folders);
     },
     (err) => {
@@ -213,6 +279,7 @@ export async function firestoreSaveFile(fileItem: FileItem, dataUrl?: string): P
       };
       await setDoc(fileRef, fileData, { merge: true });
     }
+    recordSuccessfulCloudSync();
     console.log('[Firestore] File uploaded & synced to cloud:', fileItem.file_name, fileItem.id);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -226,6 +293,7 @@ export async function firestoreGetFiles(): Promise<FileItem[]> {
   const path = 'files';
   try {
     const snap = await getDocs(collection(db, 'files'));
+    recordSuccessfulCloudSync();
     return snap.docs.map((d) => {
       const data = d.data() as FirestoreFileDoc;
       return data as FileItem;
@@ -244,6 +312,7 @@ export async function firestoreGetFileData(fileId: string): Promise<(FileItem & 
   try {
     const fileRef = doc(db, 'files', fileId);
     const snap = await getDoc(fileRef);
+    recordSuccessfulCloudSync();
     if (!snap.exists()) return null;
 
     const data = snap.data() as FirestoreFileDoc;
@@ -276,6 +345,7 @@ export async function firestoreUpdateFile(fileId: string, updates: Partial<FileI
       ...updates,
       updated_at: new Date().toISOString(),
     });
+    recordSuccessfulCloudSync();
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -306,6 +376,7 @@ export async function firestoreDeleteFile(fileId: string, permanent = false): Pr
       }
       await deleteDoc(fileRef);
     }
+    recordSuccessfulCloudSync();
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
@@ -320,6 +391,7 @@ export function firestoreSubscribeFiles(callback: (files: FileItem[]) => void): 
     collection(db, 'files'),
     (snapshot) => {
       const files = snapshot.docs.map((d) => d.data() as FileItem);
+      recordSuccessfulCloudSync();
       callback(files);
     },
     (err) => {

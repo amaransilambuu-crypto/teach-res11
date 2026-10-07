@@ -15,7 +15,10 @@
         "avatar_color": { "type": "string" },
         "created_at": { "type": "string" },
         "last_login": { "type": "string" },
-        "device": { "type": "string" }
+        "device": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "school_id": { "type": "string" },
+        "pre_registered": { "type": "boolean" }
       },
       "required": ["id", "username", "email", "role"]
     },

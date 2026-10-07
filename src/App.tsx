@@ -19,12 +19,17 @@ import { AdminReportsView } from './components/AdminReportsView.tsx';
 import { AdminSecurityView } from './components/AdminSecurityView.tsx';
 import { SettingsView } from './components/SettingsView.tsx';
 import { AboutView } from './components/AboutView.tsx';
-import { FileItem, Folder, UserStats, ViewTab } from './types.ts';
-import { api, syncLocalFilesToServer, initRealtimeCloudSync } from './services/api.ts';
+import { OfflineWarningBanner } from './components/OfflineWarningBanner.tsx';
+import { PendingSyncStatusBar } from './components/PendingSyncStatusBar.tsx';
+import { SettingsModal } from './components/SettingsModal.tsx';
+import { ThemeProvider, useInstitutionTheme } from './context/ThemeContext.tsx';
+import { FileItem, Folder, User, UserStats, ViewTab } from './types.ts';
+import { api, syncLocalFilesToServer, initRealtimeCloudSync, firestoreSubscribeUsers } from './services/api.ts';
 import { Loader2, Trash2, Check, AlertCircle, RotateCcw } from 'lucide-react';
 
 const MainApp: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { isSettingsModalOpen, closeSettingsModal, settingsModalTab, theme } = useInstitutionTheme();
 
   // Navigation & View state
   const [currentTab, setCurrentTab] = useState<ViewTab>('dashboard');
@@ -37,6 +42,7 @@ const MainApp: React.FC = () => {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loadingData, setLoadingData] = useState(false);
+  const [rosterUsers, setRosterUsers] = useState<User[]>([]);
 
   // Active Modals
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -125,6 +131,47 @@ const MainApp: React.FC = () => {
       cleanupRealtimeSync();
     };
   }, [isAuthenticated, currentTab, currentFolderId]);
+
+  // subscribeUsers effect:
+  // - Subscribes to real-time Firestore user collection
+  // - Correctly filters the roster by schoolId to match the current teacher's institution
+  // - Broadcasts newly registered accounts in real-time to all active admin sessions
+  useEffect(function subscribeUsers() {
+    if (!isAuthenticated) return;
+
+    const currentSchoolId =
+      user?.schoolId || user?.school_id || theme.school_id || 'pannaipuram_high';
+    const isAdmin = user?.role === 'admin';
+
+    const unsubscribe = firestoreSubscribeUsers((allCloudUsers, changes) => {
+      // 1. Broadcast alert to all active admin sessions when a new account is registered or pre-registered
+      if (isAdmin && !changes.isInitial && changes.added && changes.added.length > 0) {
+        changes.added.forEach((newStaff) => {
+          const staffSchool = newStaff.schoolId || newStaff.school_id || currentSchoolId;
+          showToast(
+            `🔔 New staff account pre-registered: ${newStaff.username} (${newStaff.email}) · ${staffSchool}`,
+            'info'
+          );
+        });
+      }
+
+      // 2. Filter the roster by schoolId to match the current teacher's institution
+      if (!isAdmin) {
+        const filteredRoster = allCloudUsers.filter((u) => {
+          const uSchoolId = u.schoolId || u.school_id || 'pannaipuram_high';
+          return uSchoolId === currentSchoolId;
+        });
+        setRosterUsers(filteredRoster);
+      } else {
+        // Master admin views the comprehensive institution roster
+        setRosterUsers(allCloudUsers);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isAuthenticated, user?.role, user?.schoolId, user?.school_id, theme.school_id]);
 
   // Periodic background sync and focus event listener for instant cross-device updates
   useEffect(() => {
@@ -337,6 +384,12 @@ const MainApp: React.FC = () => {
 
   return (
     <div id="teacher-resource-hub-app" className="min-h-screen bg-slate-100 flex flex-col font-sans">
+      {/* PWA Offline Warning Banner (Cache API) */}
+      <OfflineWarningBanner />
+
+      {/* 'Pending Sync' Status Bar (Queued uploads while disconnected) */}
+      <PendingSyncStatusBar />
+
       {/* Top Navigation */}
       <Navbar
         currentTab={currentTab}
@@ -366,7 +419,7 @@ const MainApp: React.FC = () => {
             {currentTab === 'dashboard' && (
               <DashboardView
                 stats={stats}
-                recentFiles={files.filter((f) => !f.in_trash)}
+                recentFiles={files.filter((f) => !f.is_trash)}
                 onSelectTab={handleSelectTab}
                 onOpenUpload={() => setIsUploadOpen(true)}
                 onPlayVideo={(f) => setActiveVideoFile(f)}
@@ -486,7 +539,7 @@ const MainApp: React.FC = () => {
             {currentTab === 'about' && <AboutView />}
 
             {/* ADMIN TABS */}
-            {currentTab === 'admin_users' && <AdminUsersView />}
+            {currentTab === 'admin_users' && <AdminUsersView rosterUsers={rosterUsers} />}
             {currentTab === 'admin_storage' && <AdminStorageView />}
             {currentTab === 'admin_reports' && <AdminReportsView />}
             {currentTab === 'admin_security' && (
@@ -553,6 +606,7 @@ const MainApp: React.FC = () => {
         file={activeShareFile}
         onClose={() => setActiveShareFile(null)}
         onShareUpdated={refreshAllData}
+        rosterUsers={rosterUsers}
       />
 
       {/* Move Modal */}
@@ -651,6 +705,14 @@ const MainApp: React.FC = () => {
         </div>
       )}
 
+      {/* Settings Modal (Theme Selector, School Info, Devices) */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={closeSettingsModal}
+        initialTab={settingsModalTab}
+        onSettingsUpdated={() => refreshAllData()}
+      />
+
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -679,7 +741,9 @@ const MainApp: React.FC = () => {
 export default function App() {
   return (
     <AuthProvider>
-      <MainApp />
+      <ThemeProvider>
+        <MainApp />
+      </ThemeProvider>
     </AuthProvider>
   );
 }

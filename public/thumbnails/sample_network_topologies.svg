@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <rect width="320" height="200" fill="#0f172a"/>
+  <!-- Diagram Header -->
+  <rect x="16" y="12" width="288" height="24" rx="6" fill="#1e293b"/>
+  <text x="160" y="28" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#f8fafc" text-anchor="middle">Computer Network Topologies</text>
+  <!-- Central Hub (Star Topology) -->
+  <circle cx="160" cy="115" r="18" fill="#2563eb"/>
+  <text x="160" y="119" font-family="system-ui, sans-serif" font-size="8" font-weight="bold" fill="#ffffff" text-anchor="middle">HUB</text>
+  <!-- Connection lines -->
+  <line x1="160" y1="97" x2="160" y2="65" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="3 2"/>
+  <line x1="160" y1="133" x2="160" y2="165" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="3 2"/>
+  <line x1="142" y1="115" x2="95" y2="115" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="3 2"/>
+  <line x1="178" y1="115" x2="225" y2="115" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="3 2"/>
+  <!-- Nodes -->
+  <circle cx="160" cy="65" r="12" fill="#0284c7"/>
+  <text x="160" y="68" font-family="system-ui, sans-serif" font-size="7" fill="#ffffff" text-anchor="middle">A</text>
+  <circle cx="160" cy="165" r="12" fill="#0284c7"/>
+  <text x="160" y="168" font-family="system-ui, sans-serif" font-size="7" fill="#ffffff" text-anchor="middle">B</text>
+  <circle cx="95" cy="115" r="12" fill="#0284c7"/>
+  <text x="95" y="118" font-family="system-ui, sans-serif" font-size="7" fill="#ffffff" text-anchor="middle">C</text>
+  <circle cx="225" cy="115" r="12" fill="#0284c7"/>
+  <text x="225" y="118" font-family="system-ui, sans-serif" font-size="7" fill="#ffffff" text-anchor="middle">D</text>
+  <!-- Mesh badge -->
+  <rect x="24" y="155" width="65" height="18" rx="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+  <text x="56" y="167" font-family="system-ui, sans-serif" font-size="7" font-weight="bold" fill="#60a5fa" text-anchor="middle">Star Mesh</text>
+</svg>

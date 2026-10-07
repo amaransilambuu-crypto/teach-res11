@@ -6,8 +6,10 @@ import {
   AdminStats,
   NotificationItem,
   ActivityLog,
+  InstitutionTheme,
 } from '../types.ts';
 import { localFallbackDb } from './fallbackDb.ts';
+import { recordSuccessfulCloudSync } from './cloudSyncTracker.ts';
 import {
   firestoreSaveFile,
   firestoreGetFiles,
@@ -20,6 +22,9 @@ import {
   seedFirestoreIfEmpty,
   firestoreSubscribeFiles,
   firestoreSubscribeFolders,
+  firestoreBulkSaveUsers,
+  firestoreSubscribeUsers,
+  firestoreGetUsers,
 } from './firebaseDb.ts';
 
 const TOKEN_KEY = 'trh_auth_token';
@@ -57,7 +62,7 @@ export function detectDevice(): string {
 
 async function handleLocalFallback<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getStoredToken() || '';
-  const currentUser = localFallbackDb.getCurrentUserFromToken(token) || localFallbackDb.getAdminUsers()[0];
+  const currentUser = localFallbackDb.getCurrentUserFromToken(token);
   const method = (options.method || 'GET').toUpperCase();
   const [path, queryString] = endpoint.split('?');
   const searchParams = new URLSearchParams(queryString || '');
@@ -72,6 +77,9 @@ async function handleLocalFallback<T>(endpoint: string, options: RequestInit = {
     return localFallbackDb.register(body.username, body.email, body.password, body.role) as unknown as T;
   }
   if (path === '/api/auth/me' && method === 'GET') {
+    if (!currentUser) {
+      throw new Error('Not authenticated');
+    }
     return { user: currentUser } as unknown as T;
   }
   if (path === '/api/auth/profile' && method === 'PUT') {
@@ -86,6 +94,67 @@ async function handleLocalFallback<T>(endpoint: string, options: RequestInit = {
   }
   if (path === '/api/auth/reset-password' && method === 'POST') {
     return { message: 'Password reset successful.' } as unknown as T;
+  }
+
+  // 1.5 Institution Brand & Theme
+  if (path === '/api/institution/theme') {
+    if (method === 'GET') {
+      const cached = localStorage.getItem('trh_institution_theme_v1');
+      if (cached) {
+        try {
+          return { theme: JSON.parse(cached) } as unknown as T;
+        } catch {
+          // ignore
+        }
+      }
+      return {
+        theme: {
+          school_id: 'pannaipuram_high',
+          school_name: 'Govt Hr Sec School, Pannaipuram',
+          primary_color: '#1e3a8a',
+          accent_color: '#3b82f6',
+          navbar_style: 'solid',
+          sidebar_style: 'solid',
+          updated_at: new Date().toISOString(),
+          updated_by_name: 'Default',
+        },
+      } as unknown as T;
+    }
+    if (method === 'PUT') {
+      const body = JSON.parse((options.body as string) || '{}');
+      let prev: Partial<InstitutionTheme> = {};
+      try {
+        prev = JSON.parse(localStorage.getItem('trh_institution_theme_v1') || '{}');
+      } catch {
+        // ignore
+      }
+      const updated: InstitutionTheme = {
+        school_id: 'pannaipuram_high',
+        school_name: body.school_name || prev.school_name || 'Govt Hr Sec School, Pannaipuram',
+        primary_color: body.primary_color || prev.primary_color || '#1e3a8a',
+        accent_color: body.accent_color || prev.accent_color || '#3b82f6',
+        navbar_style: body.navbar_style || prev.navbar_style || 'solid',
+        sidebar_style: body.sidebar_style || prev.sidebar_style || 'solid',
+        updated_at: new Date().toISOString(),
+        updated_by_name: currentUser?.username || 'Staff',
+      };
+      localStorage.setItem('trh_institution_theme_v1', JSON.stringify(updated));
+      return { theme: updated, message: 'Updated successfully' } as unknown as T;
+    }
+  }
+  if (path === '/api/institution/theme/reset' && method === 'POST') {
+    const def: InstitutionTheme = {
+      school_id: 'pannaipuram_high',
+      school_name: 'Govt Hr Sec School, Pannaipuram',
+      primary_color: '#1e3a8a',
+      accent_color: '#3b82f6',
+      navbar_style: 'solid',
+      sidebar_style: 'solid',
+      updated_at: new Date().toISOString(),
+      updated_by_name: 'Reset',
+    };
+    localStorage.setItem('trh_institution_theme_v1', JSON.stringify(def));
+    return { theme: def, message: 'Reset successfully' } as unknown as T;
   }
 
   // 2. Folders
@@ -251,6 +320,32 @@ async function handleLocalFallback<T>(endpoint: string, options: RequestInit = {
       return localFallbackDb.register(body.username, body.email, body.password, body.role || 'teacher') as unknown as T;
     }
   }
+  if (path === '/api/admin/users/bulk-register' && method === 'POST') {
+    const body = JSON.parse((options.body as string) || '{}');
+    const emailList = Array.isArray(body.emails)
+      ? body.emails
+      : typeof body.emails === 'string'
+      ? body.emails.split(/[\n,;\s]+/).filter(Boolean)
+      : [];
+    const res = localFallbackDb.bulkRegisterTeachers(
+      emailList,
+      body.school_id || 'pannaipuram_high',
+      body.storage_limit_gb || 10,
+      body.role || 'teacher',
+      body.default_password || 'teacher123'
+    );
+    return {
+      success: true,
+      totalSubmitted: emailList.length,
+      registeredCount: res.created.length,
+      skippedCount: res.skipped.length,
+      invalidCount: res.invalid.length,
+      users: res.created,
+      skippedEmails: res.skipped,
+      invalidEmails: res.invalid,
+      message: `Successfully pre-registered ${res.created.length} teacher(s).`,
+    } as unknown as T;
+  }
   if (path.startsWith('/api/admin/users/') && method === 'PUT') {
     const userId = path.replace('/api/admin/users/', '');
     const user = localFallbackDb.getUserById(userId);
@@ -285,6 +380,7 @@ export function checkIsStaticHost(): boolean {
       host.endsWith('.pages.dev') ||
       host.endsWith('.web.app') ||
       host.endsWith('.firebaseapp.com') ||
+      host.includes('surge.sh') ||
       host.endsWith('.surge.sh')
     ) {
       isStaticHostMode = true;
@@ -995,6 +1091,43 @@ export const api = {
       const token = getStoredToken();
       return `/api/files/${id}/preview${token ? `?token=${encodeURIComponent(token)}` : ''}`;
     },
+    getThumbnailUrl: (fileOrId: FileItem | string) => {
+      const id = typeof fileOrId === 'string' ? fileOrId : fileOrId.id;
+      const file = typeof fileOrId === 'object' ? fileOrId : localFallbackDb.getFileById(id);
+
+      // If file explicitly provides thumbnail_url, use it
+      if (file?.thumbnail_url) return file.thumbnail_url;
+
+      // If local dataUrl exists for image
+      if (
+        file?.dataUrl &&
+        (['png', 'jpg', 'jpeg', 'webp', 'svg', 'bmp'].includes((file.file_type || '').toLowerCase()) ||
+          file.dataUrl.startsWith('data:image'))
+      ) {
+        return file.dataUrl;
+      }
+
+      const fileNameLower = (file?.file_name || '').toLowerCase();
+      if (fileNameLower.includes('lesson_1') || fileNameLower.includes('cs_lesson')) {
+        return '/thumbnails/sample_cs_lesson_1.png';
+      }
+      if (fileNameLower.includes('network') || fileNameLower.includes('topolog')) {
+        return '/thumbnails/sample_network_topologies.png';
+      }
+      if (fileNameLower.includes('unit_test') || fileNameLower.includes('question_paper')) {
+        return '/thumbnails/sample_unit_test_pdf.png';
+      }
+
+      const ext = (file?.file_type || '').toLowerCase();
+      if (ext === 'pdf' || file?.mime_type === 'application/pdf') {
+        return '/thumbnails/default_pdf_thumbnail.png';
+      }
+      if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp'].includes(ext)) {
+        return `/api/files/${id}/thumbnail`;
+      }
+
+      return `/api/files/${id}/thumbnail`;
+    },
   },
 
   stats: {
@@ -1009,6 +1142,41 @@ export const api = {
 
   admin: {
     getUsers: () => request<{ users: User[] }>('/api/admin/users'),
+
+    bulkRegister: async (data: {
+      emails: string[] | string;
+      role?: string;
+      storage_limit_gb?: number;
+      school_id?: string;
+      default_password?: string;
+    }) => {
+      const res = await request<{
+        success: boolean;
+        totalSubmitted: number;
+        registeredCount: number;
+        skippedCount: number;
+        invalidCount: number;
+        users: User[];
+        skippedEmails: string[];
+        invalidEmails: string[];
+        message: string;
+      }>('/api/admin/users/bulk-register', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+
+      // Synchronize newly pre-registered users with Firestore cloud database
+      if (res && res.users && res.users.length > 0) {
+        try {
+          await firestoreBulkSaveUsers(res.users);
+          console.log('[Firestore] Synced pre-registered staff batch to cloud:', res.users.length);
+        } catch (err) {
+          console.warn('[Firestore] Notice syncing bulk users to cloud:', err);
+        }
+      }
+
+      return res;
+    },
 
     createUser: (data: { username: string; email: string; password: string; role?: string; storage_limit_gb?: number }) =>
       request<{ user: User }>('/api/admin/users', {
@@ -1080,6 +1248,22 @@ export const api = {
         method: 'DELETE',
       }),
   },
+
+  institution: {
+    getTheme: (schoolId?: string) =>
+      request<{ theme: InstitutionTheme }>(`/api/institution/theme${schoolId ? `?school_id=${encodeURIComponent(schoolId)}` : ''}`),
+
+    updateTheme: (data: Partial<InstitutionTheme>) =>
+      request<{ theme: InstitutionTheme; message: string }>('/api/institution/theme', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    resetTheme: () =>
+      request<{ theme: InstitutionTheme; message: string }>('/api/institution/theme/reset', {
+        method: 'POST',
+      }),
+  },
 };
 
 /**
@@ -1135,6 +1319,7 @@ export function initRealtimeCloudSync(onUpdate?: () => void): () => void {
         if (cloudFolders && cloudFolders.length > 0) {
           localFallbackDb.mergeCloudFolders(cloudFolders);
         }
+        recordSuccessfulCloudSync();
         if (onUpdate) onUpdate();
       })
       .catch((e) => console.warn('[Cloud Sync] Initial fetch notice:', e));
@@ -1156,9 +1341,20 @@ export function initRealtimeCloudSync(onUpdate?: () => void): () => void {
     }
   });
 
+  // 5. Real-time user roster listener across all devices
+  const unsubUsers = firestoreSubscribeUsers((cloudUsers) => {
+    if (cloudUsers && cloudUsers.length > 0) {
+      localFallbackDb.mergeCloudUsers(cloudUsers);
+      if (onUpdate) onUpdate();
+    }
+  });
+
   return () => {
     unsubFiles();
     unsubFolders();
+    unsubUsers();
   };
 }
+
+export { firestoreSubscribeUsers, firestoreBulkSaveUsers, firestoreGetUsers };
 

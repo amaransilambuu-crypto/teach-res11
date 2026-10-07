@@ -1,5 +1,6 @@
 import express from 'express';
 import type { Request, Response } from 'express';
+import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
@@ -557,7 +558,26 @@ app.get('/api/files', authenticateToken, (req: AuthenticatedRequest, res: Respon
     allFiles.sort((a, b) => (new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()) * order);
   }
 
-  res.json({ files: allFiles });
+  // Populate thumbnail_url for image and PDF files
+  const filesWithThumbnails = allFiles.map((f) => {
+    const ext = (f.file_type || '').toLowerCase();
+    const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp'].includes(ext);
+    const isPdf = ext === 'pdf' || f.mime_type === 'application/pdf';
+    if (!isImage && !isPdf) return f;
+
+    const lowerName = f.file_name.toLowerCase();
+    let thumbUrl = `/api/files/${f.id}/thumbnail`;
+    if (lowerName.includes('lesson_1') || lowerName.includes('cs_lesson')) {
+      thumbUrl = '/thumbnails/sample_cs_lesson_1.png';
+    } else if (lowerName.includes('network') || lowerName.includes('topolog')) {
+      thumbUrl = '/thumbnails/sample_network_topologies.png';
+    } else if (lowerName.includes('unit_test') || lowerName.includes('question_paper')) {
+      thumbUrl = '/thumbnails/sample_unit_test_pdf.png';
+    }
+    return { ...f, thumbnail_url: thumbUrl };
+  });
+
+  res.json({ files: filesWithThumbnails });
 });
 
 // Upload File (Central Cloud Storage - Cross Device accessible)
@@ -1175,6 +1195,90 @@ app.get('/api/files/:id/preview', (req: Request, res: Response) => {
   fs.createReadStream(filePath).pipe(res);
 });
 
+// Small-sized Thumbnail for Images & PDFs (Precached / Workbox cache-first)
+app.get('/api/files/:id/thumbnail', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const publicThumbDir = path.join(process.cwd(), 'public', 'thumbnails');
+  const file = db.getFileById(id);
+
+  res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+
+  if (!file) {
+    const defaultThumb = path.join(publicThumbDir, 'default_pdf_thumbnail.png');
+    if (fs.existsSync(defaultThumb)) {
+      res.setHeader('Content-Type', 'image/png');
+      fs.createReadStream(defaultThumb).pipe(res);
+      return;
+    }
+    res.status(404).send('Thumbnail not found');
+    return;
+  }
+
+  const ext = (file.file_type || '').toLowerCase();
+  const fileNameLower = file.file_name.toLowerCase();
+  const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp'].includes(ext);
+  const isPdf = ext === 'pdf' || file.mime_type === 'application/pdf';
+
+  if (fileNameLower.includes('lesson_1') || fileNameLower.includes('cs_lesson')) {
+    const thumb = path.join(publicThumbDir, 'sample_cs_lesson_1.png');
+    if (fs.existsSync(thumb)) {
+      res.setHeader('Content-Type', 'image/png');
+      fs.createReadStream(thumb).pipe(res);
+      return;
+    }
+  }
+
+  if (fileNameLower.includes('network') || fileNameLower.includes('topolog')) {
+    const thumb = path.join(publicThumbDir, 'sample_network_topologies.png');
+    if (fs.existsSync(thumb)) {
+      res.setHeader('Content-Type', 'image/png');
+      fs.createReadStream(thumb).pipe(res);
+      return;
+    }
+  }
+
+  if (fileNameLower.includes('unit_test') || fileNameLower.includes('question_paper') || fileNameLower.includes('model_paper')) {
+    const thumb = path.join(publicThumbDir, 'sample_unit_test_pdf.png');
+    if (fs.existsSync(thumb)) {
+      res.setHeader('Content-Type', 'image/png');
+      fs.createReadStream(thumb).pipe(res);
+      return;
+    }
+  }
+
+  if (isImage) {
+    const filePath = ensurePhysicalFileExists(file);
+    if (fs.existsSync(filePath)) {
+      res.setHeader('Content-Type', getMimeType(file.file_name, file.mime_type));
+      fs.createReadStream(filePath).pipe(res);
+      return;
+    }
+    const defaultImg = path.join(publicThumbDir, 'default_image_thumbnail.png');
+    if (fs.existsSync(defaultImg)) {
+      res.setHeader('Content-Type', 'image/png');
+      fs.createReadStream(defaultImg).pipe(res);
+      return;
+    }
+  }
+
+  if (isPdf) {
+    const defaultPdf = path.join(publicThumbDir, 'default_pdf_thumbnail.png');
+    if (fs.existsSync(defaultPdf)) {
+      res.setHeader('Content-Type', 'image/png');
+      fs.createReadStream(defaultPdf).pipe(res);
+      return;
+    }
+  }
+
+  const defaultFallback = path.join(publicThumbDir, 'default_pdf_thumbnail.png');
+  if (fs.existsSync(defaultFallback)) {
+    res.setHeader('Content-Type', 'image/png');
+    fs.createReadStream(defaultFallback).pipe(res);
+    return;
+  }
+  res.status(404).send('Thumbnail not found');
+});
+
 // Update File (Rename, Move folder, Toggle Favorite, Description)
 app.put('/api/files/:id', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   if (!req.user) return;
@@ -1566,6 +1670,127 @@ app.post('/api/admin/users', authenticateToken, requireAdmin, (req: Authenticate
   res.status(201).json({ user: safeUser });
 });
 
+// Admin bulk pre-register teachers from email list
+app.post('/api/admin/users/bulk-register', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const { emails, role, storage_limit_gb, school_id, default_password } = req.body;
+  if (!emails || (!Array.isArray(emails) && typeof emails !== 'string')) {
+    res.status(400).json({ error: 'A list of emails is required.' });
+    return;
+  }
+
+  // Parse raw text or array
+  let emailList: string[] = [];
+  if (Array.isArray(emails)) {
+    emailList = emails.map((e) => (typeof e === 'string' ? e.trim() : (e as any)?.email?.trim() || '')).filter(Boolean);
+  } else if (typeof emails === 'string') {
+    emailList = emails
+      .split(/[\n,;\s]+/)
+      .map((e) => e.trim())
+      .filter(Boolean);
+  }
+
+  if (emailList.length === 0) {
+    res.status(400).json({ error: 'No valid email addresses provided in the list.' });
+    return;
+  }
+
+  const limitBytes = (storage_limit_gb ? Number(storage_limit_gb) : 10) * 1024 * 1024 * 1024;
+  const initialPassword = default_password?.trim() || 'teacher123';
+  const targetSchoolId = school_id?.trim() || 'pannaipuram_high';
+  const userRole = role === 'admin' ? 'admin' : 'teacher';
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const createdUsers: StoredUser[] = [];
+  const skippedEmails: string[] = [];
+  const invalidEmails: string[] = [];
+  const existingUsers = db.getUsers();
+  const seenInBatch = new Set<string>();
+
+  const avatarColors = ['#0284c7', '#059669', '#7c3aed', '#d97706', '#dc2626', '#0891b2', '#4f46e5'];
+
+  for (let i = 0; i < emailList.length; i++) {
+    const rawEmail = emailList[i].toLowerCase().trim();
+
+    if (!emailRegex.test(rawEmail)) {
+      invalidEmails.push(rawEmail);
+      continue;
+    }
+
+    if (seenInBatch.has(rawEmail) || existingUsers.some((u) => u.email.toLowerCase() === rawEmail)) {
+      skippedEmails.push(rawEmail);
+      continue;
+    }
+
+    seenInBatch.add(rawEmail);
+
+    // Derive a clean, human-readable display name from the email prefix
+    const prefix = rawEmail.split('@')[0];
+    const cleanName = prefix
+      .replace(/[._-]+/g, ' ')
+      .split(' ')
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ') || 'Teacher';
+
+    const color = avatarColors[createdUsers.length % avatarColors.length];
+    const newUser: StoredUser = {
+      id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}_${i}`,
+      username: cleanName,
+      email: rawEmail,
+      password_hash: hashPassword(initialPassword),
+      role: userRole,
+      status: 'active',
+      storage_used: 0,
+      storage_limit: limitBytes,
+      avatar_color: color,
+      created_at: new Date().toISOString(),
+      schoolId: targetSchoolId,
+      school_id: targetSchoolId,
+      pre_registered: true,
+      can_upload: true,
+      can_download: true,
+      can_delete: true,
+      can_share: true,
+    };
+
+    createdUsers.push(newUser);
+  }
+
+  if (createdUsers.length > 0) {
+    db.createUsersBulk(createdUsers);
+
+    db.addLog({
+      id: `log_${Date.now()}`,
+      user_id: req.user!.id,
+      user_name: req.user!.username,
+      user_email: req.user!.email,
+      action: 'BULK_PRE_REGISTER',
+      details: `Pre-registered ${createdUsers.length} staff member accounts (${targetSchoolId})`,
+      timestamp: new Date().toISOString(),
+      device: getDeviceFromRequest(req),
+    });
+  }
+
+  const safeCreatedUsers = createdUsers.map(({ password_hash, ...u }) => ({
+    ...u,
+    temporary_password: initialPassword,
+  }));
+
+  res.status(200).json({
+    success: true,
+    totalSubmitted: emailList.length,
+    registeredCount: createdUsers.length,
+    skippedCount: skippedEmails.length,
+    invalidCount: invalidEmails.length,
+    users: safeCreatedUsers,
+    skippedEmails,
+    invalidEmails,
+    message: `Successfully pre-registered ${createdUsers.length} teacher(s). ${
+      skippedEmails.length > 0 ? `${skippedEmails.length} existing skipped.` : ''
+    }`,
+  });
+});
+
 // Admin get permissions rights matrix
 app.get('/api/admin/permissions', authenticateToken, requireAdmin, (_req: AuthenticatedRequest, res: Response) => {
   res.json({
@@ -1789,6 +2014,78 @@ app.delete('/api/admin/files/:id', authenticateToken, requireAdmin, (req: Authen
   res.json({ message: 'File deleted by administrator.' });
 });
 
+// ==========================================
+// INSTITUTION BRAND & THEME ENDPOINTS
+// ==========================================
+
+// Get institution theme for school (publicly accessible so layout loads instantly)
+app.get('/api/institution/theme', (req: Request, res: Response) => {
+  const schoolId = (req.query.school_id as string) || 'pannaipuram_high';
+  const theme = db.getInstitutionTheme(schoolId);
+  res.json({ theme });
+});
+
+// Update institution brand theme (accessible to authenticated teachers/admins)
+app.put('/api/institution/theme', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
+  const { primary_color, school_name, accent_color, navbar_style, sidebar_style } = req.body;
+
+  if (primary_color && typeof primary_color === 'string') {
+    // Validate hex color
+    if (!/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(primary_color.trim())) {
+      res.status(400).json({ error: 'Invalid hex color format. Example: #1e3a8a or #4f46e5' });
+      return;
+    }
+  }
+
+  const updatedTheme = db.updateInstitutionTheme(
+    {
+      primary_color: primary_color ? primary_color.trim() : undefined,
+      school_name: school_name ? school_name.trim() : undefined,
+      accent_color,
+      navbar_style,
+      sidebar_style,
+    },
+    req.user?.username || req.user?.email || 'Teacher'
+  );
+
+  db.addLog({
+    id: `log_${Date.now()}`,
+    user_id: req.user!.id,
+    user_name: req.user!.username,
+    user_email: req.user!.email,
+    action: 'THEME_CUSTOMIZED',
+    details: `Updated institution brand color to ${updatedTheme.primary_color} for ${updatedTheme.school_name}`,
+    timestamp: new Date().toISOString(),
+    device: getDeviceFromRequest(req),
+  });
+
+  res.json({
+    theme: updatedTheme,
+    message: 'Institution brand theme successfully updated for all school users.',
+  });
+});
+
+// Reset institution brand theme to default
+app.post('/api/institution/theme/reset', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
+  const defaultTheme = db.resetInstitutionTheme();
+
+  db.addLog({
+    id: `log_${Date.now()}`,
+    user_id: req.user!.id,
+    user_name: req.user!.username,
+    user_email: req.user!.email,
+    action: 'THEME_RESET',
+    details: `Reset institution brand theme to default (${defaultTheme.primary_color})`,
+    timestamp: new Date().toISOString(),
+    device: getDeviceFromRequest(req),
+  });
+
+  res.json({
+    theme: defaultTheme,
+    message: 'Institution brand theme reset to default.',
+  });
+});
+
 // API 404 handler to ensure unhandled /api/* routes always return JSON instead of HTML
 app.all('/api/*', (_req, res) => {
   res.status(404).json({ error: 'API endpoint not found.' });
@@ -1799,10 +2096,14 @@ app.all('/api/*', (_req, res) => {
 // ==========================================
 
 async function startServer() {
+  const server = http.createServer(app);
+  const isHmrDisabled = process.env.DISABLE_HMR === 'true';
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
+        hmr: false,
         watch: {
           ignored: [
             '**/data/**',
@@ -1829,7 +2130,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`Teacher Resource Hub server running on http://localhost:${PORT}`);
   });
 }

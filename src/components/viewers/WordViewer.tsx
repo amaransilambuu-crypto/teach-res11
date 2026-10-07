@@ -56,7 +56,11 @@ export const WordViewer: React.FC<WordViewerProps> = ({ file, previewUrl, onDown
         if (!isMounted) return;
 
         if (result && result.value && result.value.trim().length > 0) {
-          setHtmlContent(result.value);
+          const enhancedHtml = result.value.replace(
+            /<a\s+(?:[^>]*?\s+)?href="([^"]*)"/gi,
+            '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium inline-flex items-center gap-0.5"'
+          );
+          setHtmlContent(enhancedHtml);
           setRawText(textResult.value || '');
         } else {
           // If HTML output is empty, check raw text
@@ -154,88 +158,6 @@ export const WordViewer: React.FC<WordViewerProps> = ({ file, previewUrl, onDown
 
   return (
     <div className="w-full h-full flex flex-col bg-slate-900 text-slate-100 overflow-hidden select-text">
-      {/* Top Toolbar */}
-      <div className="bg-slate-950 px-4 py-2.5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 flex-shrink-0 z-10">
-        <div className="flex items-center space-x-2">
-          <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
-            <FileText className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-white truncate max-w-xs">{file.file_name}</h3>
-            <div className="flex items-center space-x-2 text-2xs text-slate-400">
-              <span className="flex items-center">
-                <BookOpen className="w-3 h-3 mr-1 text-slate-500" />
-                {wordCount} words
-              </span>
-              <span>•</span>
-              <span className="flex items-center">
-                <Clock className="w-3 h-3 mr-1 text-slate-500" />
-                ~{readTime} min read
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Zoom & Actions */}
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center bg-slate-900 rounded-lg border border-slate-800 px-1 py-0.5">
-            <button
-              type="button"
-              onClick={handleZoomOut}
-              className="p-1 text-slate-400 hover:text-white transition-colors"
-              title="Zoom out"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleResetZoom}
-              className="text-2xs font-mono font-semibold px-2 text-slate-300 hover:text-white"
-              title="Reset Zoom"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              type="button"
-              onClick={handleZoomIn}
-              className="p-1 text-slate-400 hover:text-white transition-colors"
-              title="Zoom in"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleCopy}
-            disabled={!rawText}
-            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-2xs font-medium inline-flex items-center transition-colors disabled:opacity-40"
-            title="Copy all document text"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 mr-1 text-emerald-400" />
-                Copied
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 mr-1" />
-                Copy Text
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onDownload(file)}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold inline-flex items-center shadow-xs"
-          >
-            <Download className="w-3.5 h-3.5 mr-1.5" />
-            Download (.docx)
-          </button>
-        </div>
-      </div>
-
       {/* Document Page Canvas Area */}
       <div className="flex-1 overflow-auto bg-slate-950 p-4 sm:p-8 flex justify-center items-start">
         <div

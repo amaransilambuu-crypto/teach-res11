@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { useInstitutionTheme } from '../context/ThemeContext.tsx';
 import {
   FolderTree,
   FileText,
@@ -42,6 +43,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onShowInfo,
 }) => {
   const { user, currentDevice, isAdmin } = useAuth();
+  const { theme, isDarkBrand, contrastTextColor } = useInstitutionTheme();
 
   const storageUsed = stats?.storage_used || 0;
   const storageLimit = stats?.storage_limit || 10 * 1024 * 1024 * 1024;
@@ -100,36 +102,67 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div id="dashboard-view-container" className="space-y-6">
-      {/* Welcome Banner (Professional Polish Design) */}
+      {/* Welcome Banner (Dynamically adapts to theme applied from Settings) */}
       <section>
-        <div className="bg-indigo-600 rounded-2xl p-6 sm:p-8 text-white flex flex-col md:flex-row items-start md:items-center justify-between shadow-lg shadow-indigo-200 gap-6 relative overflow-hidden">
+        <div
+          id="dashboard-welcome-banner"
+          className="rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between shadow-lg gap-6 relative overflow-hidden transition-all duration-300"
+          style={{
+            backgroundColor: theme.primary_color,
+            color: contrastTextColor,
+          }}
+        >
           <div className="relative z-10 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-indigo-100 text-xs font-semibold mb-3 backdrop-blur-xs">
+            <div
+              className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold mb-3 backdrop-blur-xs transition-colors shadow-2xs"
+              style={{
+                backgroundColor: isDarkBrand ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.08)',
+                color: contrastTextColor,
+              }}
+            >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>Central Cloud Sync Active</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2 text-white">
-              Welcome back, {user?.username || 'Teacher'}!
+            <h2
+              className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2"
+              style={{ color: contrastTextColor }}
+            >
+              Welcome back, {user?.username || 'Admin'}!
             </h2>
-            <p className="text-indigo-100 opacity-95 text-xs sm:text-sm leading-relaxed max-w-xl">
+            <p
+              className="opacity-90 text-xs sm:text-sm leading-relaxed max-w-xl"
+              style={{ color: contrastTextColor }}
+            >
               Access your teaching resources anywhere. Upload from mobile, teach on desktop. All lesson plans, audio recordings, and slides are securely stored in your central repository.
             </p>
           </div>
 
-          <div className="relative z-10 flex flex-wrap sm:flex-nowrap gap-3 flex-shrink-0">
+          <div className="relative z-10 flex flex-wrap sm:flex-nowrap gap-3 flex-shrink-0 items-center">
             <button
               id="dashboard-upload-hero-btn"
               type="button"
               onClick={onOpenUpload}
-              className="bg-white text-indigo-600 px-6 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:bg-indigo-50 flex items-center gap-2 transition-all hover:scale-[1.01]"
+              className="bg-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-md hover:bg-white/95 flex items-center gap-2 transition-all hover:scale-[1.01] cursor-pointer"
+              style={{
+                color: isDarkBrand ? theme.primary_color : '#0f172a',
+              }}
             >
-              <UploadCloud className="w-4 h-4" />
-              Upload New Resource
+              <UploadCloud
+                className="w-4 h-4"
+                style={{ color: isDarkBrand ? theme.primary_color : '#0f172a' }}
+              />
+              <span>Upload New Resource</span>
             </button>
             <button
+              id="dashboard-browse-hero-btn"
               type="button"
               onClick={() => onSelectTab('my_resources')}
-              className="bg-indigo-700/80 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-colors border border-indigo-500/40"
+              className="px-5 py-2.5 rounded-xl font-medium text-sm transition-all border cursor-pointer hover:scale-[1.01]"
+              style={{
+                backgroundColor: isDarkBrand ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.25)',
+                color: contrastTextColor,
+                borderColor: isDarkBrand ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)',
+              }}
             >
               Browse All
             </button>
@@ -218,7 +251,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <button
             type="button"
             onClick={() => onSelectTab('recent')}
-            className="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+            style={{ color: theme.primary_color }}
+            className="text-xs font-bold hover:opacity-80 hover:underline cursor-pointer"
           >
             View All Recent &rarr;
           </button>
@@ -303,7 +337,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               else if (isAudio) onPlayAudio(file);
                               else onPreviewDocument(file);
                             }}
-                            className="text-indigo-600 font-bold text-xs hover:underline"
+                            style={{ color: theme.primary_color }}
+                            className="font-bold text-xs hover:opacity-80 hover:underline cursor-pointer"
                           >
                             {isVideo || isAudio ? 'Play' : 'Open'}
                           </button>

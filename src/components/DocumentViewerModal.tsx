@@ -14,6 +14,7 @@ import {
   ZoomOut,
   RotateCw,
   Maximize2,
+  Minimize2,
   Presentation,
   Table,
   Copy,
@@ -25,6 +26,9 @@ import {
   Film,
   Music,
   Code,
+  Laptop,
+  Cloud,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { FileItem } from '../types.ts';
 import { api } from '../services/api.ts';
@@ -65,6 +69,9 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   // Presentation slide state
   const [currentSlide, setCurrentSlide] = useState(1);
   const [presentationMode, setPresentationMode] = useState<'slides' | 'embed'>('slides');
+
+  // Full Screen toggle state for expanding modal to fill browser window
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (!file) return;
@@ -167,24 +174,37 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   ];
 
   return (
-    <div id="document-viewer-modal" className="fixed inset-0 z-50 overflow-hidden bg-black/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in">
-      <div className="bg-white rounded-2xl max-w-5xl w-full h-[92vh] shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+    <div
+      id="document-viewer-modal"
+      className={`fixed inset-0 z-50 overflow-hidden bg-black/85 flex flex-col transition-all duration-150 ${
+        isFullscreen
+          ? 'p-0 w-screen h-screen'
+          : 'p-2 sm:p-4 items-center justify-center backdrop-blur-xs animate-in fade-in'
+      }`}
+    >
+      <div
+        className={`bg-[#0b1120] flex flex-col overflow-hidden text-slate-100 transition-all duration-150 ${
+          isFullscreen
+            ? 'w-full h-full rounded-none border-0'
+            : 'rounded-2xl max-w-6xl w-full h-[94vh] shadow-2xl border border-slate-800'
+        }`}
+      >
         {/* Top Navigation Header */}
-        <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center space-x-2.5 truncate flex-1 min-w-[200px]">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-              isPptx ? 'bg-amber-100 text-amber-600' :
-              isPdf ? 'bg-red-100 text-red-600' :
-              isDocx ? 'bg-blue-100 text-blue-600' :
-              isImage ? 'bg-emerald-100 text-emerald-600' :
-              isExcel ? 'bg-emerald-100 text-emerald-700' :
-              isVideo ? 'bg-red-100 text-red-600' :
-              isAudio ? 'bg-pink-100 text-pink-600' : 'bg-indigo-100 text-indigo-600'
+        <div className="p-3 sm:px-4 bg-[#0b1120] border-b border-slate-800 flex items-center justify-between flex-wrap gap-2 flex-shrink-0">
+          <div className="flex items-center space-x-3 truncate flex-1 min-w-[200px]">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border ${
+              isExcel ? 'bg-[#107c41] text-white border-emerald-500/40' :
+              isPptx ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+              isPdf ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+              isDocx ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+              isImage ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+              isVideo ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+              isAudio ? 'bg-pink-500/20 text-pink-400 border-pink-500/30' : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
             }`}>
-              {isPptx ? <Presentation className="w-4 h-4" /> :
+              {isExcel ? <FileSpreadsheet className="w-5 h-5" /> :
+               isPptx ? <Presentation className="w-4 h-4" /> :
                isPdf || isDocx ? <FileText className="w-4 h-4" /> :
                isImage ? <Eye className="w-4 h-4" /> :
-               isExcel ? <Table className="w-4 h-4" /> :
                isVideo ? <Film className="w-4 h-4" /> :
                isAudio ? <Music className="w-4 h-4" /> : <Code className="w-4 h-4" />}
             </div>
@@ -196,7 +216,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   autoFocus
-                  className="px-2.5 py-1 border border-indigo-500 rounded-lg text-xs w-full max-w-md focus:outline-none bg-white font-medium"
+                  className="px-2.5 py-1 border border-indigo-500 rounded-lg text-xs w-full max-w-md focus:outline-none bg-slate-900 text-white font-medium"
                 />
                 <button
                   type="submit"
@@ -207,43 +227,80 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsEditingName(false)}
-                  className="px-2 py-1 text-slate-500 text-xs hover:text-slate-700"
+                  className="px-2 py-1 text-slate-400 text-xs hover:text-slate-200"
                 >
                   Cancel
                 </button>
               </form>
             ) : (
-              <div className="flex items-center space-x-2 truncate">
-                <span className="font-bold text-slate-900 text-xs sm:text-sm truncate max-w-sm sm:max-w-md">
-                  {file.file_name}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleStartRename}
-                  className="text-slate-400 hover:text-indigo-600 p-1 rounded transition-colors"
-                  title="Rename File"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                </button>
+              <div className="truncate">
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-white text-xs sm:text-sm truncate max-w-sm sm:max-w-md">
+                    {file.file_name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleStartRename}
+                    className="text-slate-400 hover:text-indigo-400 p-1 rounded transition-colors"
+                    title="Rename File"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-center space-x-2 text-3xs sm:text-2xs text-slate-400 font-medium mt-0.5">
+                  <span className="uppercase tracking-wider font-semibold text-emerald-400">
+                    {file.file_type} DOCUMENT
+                  </span>
+                  <span>•</span>
+                  <span>{formatBytes(file.file_size)}</span>
+                  <span>•</span>
+                  <span className="inline-flex items-center text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded text-3xs font-semibold">
+                    <Cloud className="w-3 h-3 mr-1" />
+                    Offline Ready
+                  </span>
+                </div>
               </div>
             )}
           </div>
 
           {/* Action Bar */}
-          <div className="flex items-center space-x-1.5">
-            <button
-              type="button"
-              onClick={() => onShare(file)}
-              className="inline-flex items-center px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-colors"
-            >
-              <Share2 className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
-              Share
-            </button>
+          <div className="flex items-center space-x-2">
+            {isImage && (
+              <div className="hidden sm:flex items-center bg-slate-900 rounded-xl border border-slate-700 p-1 mr-1 text-slate-300">
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))}
+                  className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-3xs font-mono px-1.5 font-semibold text-slate-300">
+                  {Math.round(zoomLevel * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel((z) => Math.min(3, z + 0.2))}
+                  className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRotation((r) => (r + 90) % 360)}
+                  className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors ml-0.5"
+                  title="Rotate 90°"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
             <button
               type="button"
               onClick={() => onDownload(file)}
-              className="inline-flex items-center px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 shadow-xs transition-colors"
+              className="inline-flex items-center px-3.5 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 shadow-sm transition-colors"
             >
               <Download className="w-3.5 h-3.5 mr-1.5" />
               Download
@@ -251,17 +308,41 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
             <button
               type="button"
+              onClick={handleStartRename}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              title="Edit / Rename"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
               onClick={() => onDelete(file)}
-              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-950/40 transition-colors"
               title="Delete / Move to Trash"
             >
               <Trash2 className="w-4 h-4" />
             </button>
 
+            {/* Dedicated Full Screen Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setIsFullscreen((prev) => !prev)}
+              className={`p-2 rounded-xl transition-colors ${
+                isFullscreen
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+              title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+              aria-label="Toggle Full Screen"
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors ml-1"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ml-1"
               title="Close Preview"
             >
               <X className="w-5 h-5" />
@@ -270,49 +351,10 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         </div>
 
         {/* Viewer Canvas Area */}
-        <div className="flex-1 bg-slate-950 relative overflow-hidden flex flex-col items-center justify-center select-none">
+        <div className="flex-1 bg-slate-950 relative overflow-hidden flex flex-col items-stretch justify-start min-h-0 min-w-0 w-full h-full select-none">
           {/* 1. IMAGE VIEWER */}
           {isImage && (
             <div className="w-full h-full relative flex flex-col items-center justify-center p-4 overflow-auto">
-              <div className="absolute top-3 right-3 z-20 flex items-center space-x-1.5 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-slate-700 shadow-lg text-white">
-                <button
-                  type="button"
-                  onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))}
-                  className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white"
-                  title="Zoom Out"
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </button>
-                <span className="text-2xs font-mono px-1 font-semibold">{Math.round(zoomLevel * 100)}%</span>
-                <button
-                  type="button"
-                  onClick={() => setZoomLevel((z) => Math.min(3, z + 0.2))}
-                  className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white"
-                  title="Zoom In"
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRotation((r) => (r + 90) % 360)}
-                  className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white"
-                  title="Rotate 90°"
-                >
-                  <RotateCw className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setZoomLevel(1);
-                    setRotation(0);
-                  }}
-                  className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white"
-                  title="Reset View"
-                >
-                  <Maximize2 className="w-4 h-4" />
-                </button>
-              </div>
-
               <img
                 src={previewUrl}
                 alt={file.file_name}
@@ -320,7 +362,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
                   transition: 'transform 0.15s ease-out',
                 }}
-                className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl pointer-events-auto select-none"
+                className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl pointer-events-auto select-none"
               />
             </div>
           )}
@@ -461,8 +503,14 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
           {/* 5. SPREADSHEET VIEWER (.xlsx, .xls, .csv) */}
           {isExcel && (
-            <div className="w-full h-full bg-slate-900 flex flex-col overflow-hidden">
-              <ExcelViewer file={file} previewUrl={previewUrl} onDownload={onDownload} />
+            <div className="w-full h-full min-h-0 min-w-0 flex flex-col overflow-hidden flex-1">
+              <ExcelViewer
+                file={file}
+                previewUrl={previewUrl}
+                onDownload={onDownload}
+                isParentFullscreen={isFullscreen}
+                onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
+              />
             </div>
           )}
 
@@ -557,26 +605,55 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
           )}
         </div>
 
-        {/* Footer Metadata Bar */}
-        <div className="px-4 py-2.5 bg-white border-t border-slate-200 flex items-center justify-between text-2xs text-slate-500 flex-wrap gap-2">
-          <div className="flex items-center space-x-4">
-            <span className="flex items-center font-mono">
-              <HardDrive className="w-3 h-3 mr-1 text-slate-400" />
-              {formatBytes(file.file_size)}
-            </span>
-            <span className="flex items-center">
-              <Calendar className="w-3 h-3 mr-1 text-slate-400" />
-              {formatDate(file.uploaded_at)}
-            </span>
-            <span className="flex items-center">
-              <User className="w-3 h-3 mr-1 text-slate-400" />
-              {file.owner_name || 'Teacher'} ({file.owner_email || 'Verified User'})
-            </span>
+        {/* Footer Metadata Bar (Hidden for Excel and Word viewers to maximize workspace) */}
+        {!isExcel && !isDocx && (
+          <div className="px-5 py-3 bg-[#0b1120] border-t border-slate-800 flex items-center justify-between text-2xs text-slate-400 flex-wrap gap-4 select-none">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-12 text-left w-full sm:w-auto">
+              <div>
+                <span className="text-slate-500 uppercase tracking-wider block text-3xs font-semibold mb-0.5">
+                  File Size
+                </span>
+                <span className="font-semibold text-white flex items-center font-mono">
+                  <HardDrive className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+                  {formatBytes(file.file_size)}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 uppercase tracking-wider block text-3xs font-semibold mb-0.5">
+                  Uploaded On
+                </span>
+                <span className="font-semibold text-white flex items-center">
+                  <Calendar className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+                  {formatDate(file.uploaded_at)}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 uppercase tracking-wider block text-3xs font-semibold mb-0.5">
+                  Device Source
+                </span>
+                <span className="font-semibold text-white flex items-center">
+                  <Laptop className="w-3.5 h-3.5 mr-1.5 text-sky-400" />
+                  {file.device || 'Desktop (Windows 11 PC)'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 uppercase tracking-wider block text-3xs font-semibold mb-0.5">
+                  Teacher / Faculty
+                </span>
+                <span className="font-semibold text-white flex items-center">
+                  <User className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+                  {file.owner_name || file.owner_email?.split('@')[0] || 'pssofttech'}
+                </span>
+              </div>
+            </div>
+
+            <div className="hidden sm:flex items-center space-x-2">
+              <span className="px-2.5 py-1 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 font-semibold text-3xs">
+                Cloud Verified
+              </span>
+            </div>
           </div>
-          <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold text-2xs">
-            Cloud Verified
-          </span>
-        </div>
+        )}
       </div>
     </div>
   );

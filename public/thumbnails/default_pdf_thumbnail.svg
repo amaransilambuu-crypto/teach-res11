@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <rect width="320" height="200" fill="#f1f5f9"/>
+  <rect x="82" y="14" width="156" height="172" rx="6" fill="#e2e8f0"/>
+  <rect x="80" y="12" width="156" height="172" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+  <path d="M80 18 Q80 12 86 12 L230 12 Q236 12 236 18 L236 34 L80 34 Z" fill="#ef4444"/>
+  <rect x="90" y="18" width="30" height="10" rx="2" fill="#ffffff"/>
+  <text x="105" y="26" font-family="system-ui, sans-serif" font-size="7" font-weight="bold" fill="#ef4444" text-anchor="middle">PDF</text>
+  <rect x="92" y="46" width="90" height="7" rx="2" fill="#334155"/>
+  <rect x="92" y="60" width="132" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="70" width="120" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="80" width="130" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="90" width="95" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="104" width="132" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="114" width="115" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="124" width="125" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="175" y="145" width="50" height="24" rx="4" fill="#fee2e2" stroke="#f87171" stroke-width="1"/>
+  <text x="200" y="161" font-family="system-ui, sans-serif" font-size="8" font-weight="bold" fill="#dc2626" text-anchor="middle">PREVIEW</text>
+</svg>

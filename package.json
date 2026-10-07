@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && cp dist/index.html dist/200.html && cp dist/index.html 200.html && (cp -r dist/assets . 2>/dev/null || true) && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "deploy:surge": "npm run build && surge dist",
     "start": "node server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
@@ -36,13 +37,16 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.23.13",
     "typescript": "~5.8.2",
     "vite": "^6.2.3",
-    "@types/express": "^4.17.21"
+    "vite-plugin-pwa": "^1.3.0"
   }
 }

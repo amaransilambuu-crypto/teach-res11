@@ -18,6 +18,10 @@ export interface User {
   can_download?: boolean;
   can_delete?: boolean;
   can_share?: boolean;
+  schoolId?: string;
+  school_id?: string;
+  pre_registered?: boolean;
+  temporary_password?: string;
 }
 
 export interface Folder {
@@ -43,6 +47,17 @@ export interface SharePermission {
   created_at: string;
 }
 
+export interface InstitutionTheme {
+  school_id: string;
+  school_name: string;
+  primary_color: string;
+  accent_color?: string;
+  navbar_style?: 'solid' | 'gradient' | 'subtle';
+  sidebar_style?: 'solid' | 'gradient' | 'subtle';
+  updated_at: string;
+  updated_by_name?: string;
+}
+
 export interface FileItem {
   id: string;
   user_id: string;
@@ -62,8 +77,29 @@ export interface FileItem {
   owner_email?: string;
   duration?: number; // for video/audio in seconds
   description?: string;
+  thumbnail_url?: string;
+  dataUrl?: string;
   sharing_type: 'private' | 'selected' | 'all_teachers' | 'admin_only';
   shared_with: SharePermission[];
+  pending_sync?: boolean;
+  queued_offline?: boolean;
+}
+
+export interface PendingSyncItem {
+  id: string;
+  file_name: string;
+  file_size: number;
+  file_type: string;
+  folder_id: string | null;
+  folder_name?: string;
+  sharing_type: 'private' | 'selected' | 'all_teachers' | 'admin_only' | string;
+  queued_at: string;
+  device: string;
+  dataUrl?: string;
+  status: 'pending' | 'syncing' | 'failed' | 'synced';
+  error?: string;
+  retry_count: number;
+  local_file_id?: string;
 }
 
 export interface NotificationItem {

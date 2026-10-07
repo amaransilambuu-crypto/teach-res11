@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <rect width="320" height="200" fill="#f8fafc"/>
+  <rect x="82" y="12" width="156" height="176" rx="6" fill="#e2e8f0"/>
+  <rect x="80" y="10" width="156" height="176" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+  <path d="M80 16 Q80 10 86 10 L230 10 Q236 10 236 16 L236 34 L80 34 Z" fill="#7c3aed"/>
+  <text x="158" y="25" font-family="system-ui, sans-serif" font-size="8" font-weight="bold" fill="#ffffff" text-anchor="middle">UNIT TEST PAPER 2026</text>
+  <rect x="92" y="46" width="132" height="6" rx="1" fill="#1e293b"/>
+  <rect x="92" y="58" width="80" height="4" rx="1" fill="#64748b"/>
+  <line x1="92" y1="66" x2="224" y2="66" stroke="#e2e8f0" stroke-width="1"/>
+  <rect x="92" y="74" width="132" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="84" width="120" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="94" width="130" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="104" width="110" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="114" width="125" height="4" rx="1" fill="#cbd5e1"/>
+  <rect x="92" y="128" width="132" height="35" rx="4" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1"/>
+  <text x="158" y="148" font-family="system-ui, sans-serif" font-size="8" font-weight="bold" fill="#9333ea" text-anchor="middle">Section A: Objective Type</text>
+</svg>

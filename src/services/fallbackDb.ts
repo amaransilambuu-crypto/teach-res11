@@ -245,6 +245,7 @@ function getInitialData(): LocalData {
       uploaded_at: '2026-09-01T10:00:00.000Z',
       updated_at: '2026-09-01T10:00:00.000Z',
       description: 'Introduction to OOP concepts: classes, inheritance, polymorphism, and practical exercises.',
+      thumbnail_url: '/thumbnails/sample_cs_lesson_1.png',
       dataUrl: createSamplePdfDataUrl(),
     },
     {
@@ -266,6 +267,7 @@ function getInitialData(): LocalData {
       uploaded_at: '2026-09-03T08:15:00.000Z',
       updated_at: '2026-09-03T08:15:00.000Z',
       description: 'High-res diagram explaining Star, Mesh, Ring, and Bus topologies.',
+      thumbnail_url: '/thumbnails/sample_network_topologies.png',
       dataUrl: createSampleDiagramDataUrl(),
     },
     {
@@ -796,6 +798,91 @@ class LocalFallbackDb {
       }
     }
     this.save();
+  }
+
+  public mergeCloudUsers(cloudUsers: User[]) {
+    if (!cloudUsers || cloudUsers.length === 0) return;
+    for (const cu of cloudUsers) {
+      const idx = this.data.users.findIndex(
+        (u) => u.id === cu.id || u.email.toLowerCase() === cu.email.toLowerCase()
+      );
+      if (idx >= 0) {
+        this.data.users[idx] = {
+          ...this.data.users[idx],
+          ...cu,
+        };
+      } else {
+        this.data.users.push({
+          ...cu,
+          password: 'teacher123',
+        });
+      }
+    }
+    this.save();
+  }
+
+  public bulkRegisterTeachers(
+    emails: string[],
+    schoolId = 'pannaipuram_high',
+    storageGb = 10,
+    role: 'teacher' | 'admin' = 'teacher',
+    defaultPassword = 'teacher123'
+  ): { created: User[]; skipped: string[]; invalid: string[] } {
+    const created: User[] = [];
+    const skipped: string[] = [];
+    const invalid: string[] = [];
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const avatarColors = ['#0284c7', '#059669', '#7c3aed', '#d97706', '#dc2626', '#0891b2', '#4f46e5'];
+
+    for (const raw of emails) {
+      const email = raw.toLowerCase().trim();
+      if (!emailRegex.test(email)) {
+        invalid.push(email);
+        continue;
+      }
+      if (this.data.users.some((u) => u.email.toLowerCase() === email)) {
+        skipped.push(email);
+        continue;
+      }
+
+      const prefix = email.split('@')[0];
+      const cleanName =
+        prefix
+          .replace(/[._-]+/g, ' ')
+          .split(' ')
+          .filter(Boolean)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ') || 'Teacher';
+
+      const newUser: User & { password: string } = {
+        id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        username: cleanName,
+        email,
+        password: defaultPassword,
+        role,
+        status: 'active',
+        storage_used: 0,
+        storage_limit: storageGb * 1024 * 1024 * 1024,
+        avatar_color: avatarColors[created.length % avatarColors.length],
+        created_at: new Date().toISOString(),
+        schoolId,
+        school_id: schoolId,
+        pre_registered: true,
+        can_upload: true,
+        can_download: true,
+        can_delete: true,
+        can_share: true,
+      };
+
+      this.data.users.push(newUser);
+      const { password: _, ...safe } = newUser;
+      created.push(safe);
+    }
+
+    if (created.length > 0) {
+      this.save();
+    }
+    return { created, skipped, invalid };
   }
 
   public getRawData(): LocalData {

@@ -8,11 +8,9 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
   Smartphone,
-  Laptop,
 } from 'lucide-react';
 import { api } from '../services/api.ts';
 
@@ -21,9 +19,9 @@ export const LoginView: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [showForgotModal, setShowForgotModal] = useState(false);
 
-  // Login form state - prefill with teacher demo account for quick sign-in
-  const [identifier, setIdentifier] = useState('teacher@school.edu');
-  const [password, setPassword] = useState('teacher123');
+  // Login form state
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -105,26 +103,6 @@ export const LoginView: React.FC = () => {
       }, 1500);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to reset password.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fillCredentials = (email: string, pass: string) => {
-    setIdentifier(email);
-    setPassword(pass);
-    setError(null);
-  };
-
-  const handleQuickLogin = async (email: string, pass: string) => {
-    setIdentifier(email);
-    setPassword(pass);
-    setError(null);
-    setLoading(true);
-    try {
-      await login(email, pass, true);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Invalid credentials. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -365,88 +343,6 @@ export const LoginView: React.FC = () => {
               </button>
             </form>
           )}
-
-          {/* Quick Demo Accounts Helper */}
-          <div className="mt-6 pt-6 border-t border-slate-200">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-              <div className="flex items-center space-x-1">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                <span>1-Click Instant Sign In</span>
-              </div>
-              <span className="text-indigo-600 font-normal normal-case">Click to enter directly</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                id="demo-pssofttech-btn"
-                disabled={loading}
-                onClick={() => handleQuickLogin('pssofttech@gmail.com', 'admin123')}
-                className="p-2.5 border border-indigo-200 bg-indigo-50/40 rounded-lg text-left hover:bg-indigo-100/70 hover:border-indigo-300 transition-colors group cursor-pointer disabled:opacity-50"
-              >
-                <div className="font-semibold text-slate-800 flex items-center justify-between">
-                  <span className="flex items-center">
-                    <ShieldCheck className="w-3.5 h-3.5 mr-1 text-indigo-600" />
-                    Admin
-                  </span>
-                  <span className="text-2xs bg-indigo-600 text-white px-1.5 py-0.5 rounded font-medium group-hover:bg-indigo-700">Enter</span>
-                </div>
-                <div className="text-slate-600 truncate mt-1">pssofttech@gmail.com</div>
-                <div className="text-slate-500 font-mono text-2xs">Admin Dashboard</div>
-              </button>
-
-              <button
-                type="button"
-                id="demo-vasisoft-btn"
-                disabled={loading}
-                onClick={() => handleQuickLogin('vasisoft20815@gmail.com', 'teacher123')}
-                className="p-2.5 border border-emerald-200 bg-emerald-50/40 rounded-lg text-left hover:bg-emerald-100/70 hover:border-emerald-300 transition-colors group cursor-pointer disabled:opacity-50"
-              >
-                <div className="font-semibold text-slate-800 flex items-center justify-between">
-                  <span className="flex items-center">
-                    <Laptop className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-                    Teacher
-                  </span>
-                  <span className="text-2xs bg-emerald-600 text-white px-1.5 py-0.5 rounded font-medium group-hover:bg-emerald-700">Enter</span>
-                </div>
-                <div className="text-slate-600 truncate mt-1">vasisoft20815@gmail.com</div>
-                <div className="text-slate-500 font-mono text-2xs">Teacher Portal</div>
-              </button>
-
-              <button
-                type="button"
-                id="demo-teacher-btn"
-                disabled={loading}
-                onClick={() => handleQuickLogin('teacher@school.edu', 'teacher123')}
-                className="p-2 border border-slate-200 bg-slate-50 rounded-lg text-left hover:bg-slate-100 transition-colors group cursor-pointer disabled:opacity-50"
-              >
-                <div className="font-medium text-slate-700 flex items-center justify-between">
-                  <span className="flex items-center text-xs">
-                    <Laptop className="w-3 h-3 mr-1 text-slate-500" />
-                    School Teacher
-                  </span>
-                  <span className="text-2xs text-slate-500">1-Click</span>
-                </div>
-                <div className="text-slate-500 truncate text-2xs mt-0.5">teacher@school.edu</div>
-              </button>
-
-              <button
-                type="button"
-                id="demo-admin-btn"
-                disabled={loading}
-                onClick={() => handleQuickLogin('admin@school.edu', 'admin123')}
-                className="p-2 border border-slate-200 bg-slate-50 rounded-lg text-left hover:bg-slate-100 transition-colors group cursor-pointer disabled:opacity-50"
-              >
-                <div className="font-medium text-slate-700 flex items-center justify-between">
-                  <span className="flex items-center text-xs">
-                    <ShieldCheck className="w-3 h-3 mr-1 text-slate-500" />
-                    School Admin
-                  </span>
-                  <span className="text-2xs text-slate-500">1-Click</span>
-                </div>
-                <div className="text-slate-500 truncate text-2xs mt-0.5">admin@school.edu</div>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Cross-Device Notice Card */}

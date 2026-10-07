@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { ThemeSelector } from './ThemeSelector.tsx';
 import {
   Settings,
   User as UserIcon,
@@ -68,9 +69,12 @@ export const SettingsView: React.FC = () => {
           Account & Device Settings
         </h2>
         <p className="text-xs text-slate-500 mt-0.5">
-          Manage teacher credentials, cross-device preferences, and security options.
+          Manage institution brand color, teacher credentials, cross-device preferences, and security options.
         </p>
       </div>
+
+      {/* Institution Brand & Theme Selector */}
+      <ThemeSelector />
 
       {/* Cross-Device Status Card (Requirement #11) */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3">

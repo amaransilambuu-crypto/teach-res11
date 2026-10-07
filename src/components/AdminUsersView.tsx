@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
   Shield,
@@ -20,12 +20,23 @@ import {
   Info,
   Lock,
   Unlock,
+  FileSpreadsheet,
+  Mail,
+  Copy,
+  CheckCheck,
+  FileUp,
+  CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { User } from '../types.ts';
-import { api } from '../services/api.ts';
+import { api, firestoreSubscribeUsers } from '../services/api.ts';
 import { formatBytes, formatDate } from '../utils/format.ts';
 
-export const AdminUsersView: React.FC = () => {
+interface AdminUsersViewProps {
+  rosterUsers?: User[];
+}
+
+export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ rosterUsers }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,6 +77,148 @@ export const AdminUsersView: React.FC = () => {
   const [createRole, setCreateRole] = useState<'teacher' | 'admin'>('teacher');
   const [createStorageGb, setCreateStorageGb] = useState(10);
   const [creatingUser, setCreatingUser] = useState(false);
+
+  // Bulk Pre-Register Teachers Modal State
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkEmailsText, setBulkEmailsText] = useState('');
+  const [bulkRole, setBulkRole] = useState<'teacher' | 'admin'>('teacher');
+  const [bulkStorageGb, setBulkStorageGb] = useState<number>(10);
+  const [bulkSchoolId, setBulkSchoolId] = useState('pannaipuram_high');
+  const [bulkDefaultPassword, setBulkDefaultPassword] = useState('teacher123');
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [copiedRoster, setCopiedRoster] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{
+    success: boolean;
+    totalSubmitted: number;
+    registeredCount: number;
+    skippedCount: number;
+    invalidCount: number;
+    users: User[];
+    skippedEmails: string[];
+    invalidEmails: string[];
+    message: string;
+  } | null>(null);
+
+  // Real-time Firestore Listener: updates active admin sessions instantly when any user registers
+  useEffect(() => {
+    const unsubscribe = firestoreSubscribeUsers((cloudUsers, changes) => {
+      if (cloudUsers && cloudUsers.length > 0) {
+        setUsers(cloudUsers);
+        setLoading(false);
+      }
+      if (!changes.isInitial && changes.added && changes.added.length > 0) {
+        const addedList = changes.added.map((u) => u.username || u.email).join(', ');
+        showToast(
+          `🔔 Live Firestore Broadcast: ${changes.added.length} staff account(s) registered (${addedList})`,
+          'success'
+        );
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Sync with prop if supplied from App.tsx
+  useEffect(() => {
+    if (rosterUsers && rosterUsers.length > 0) {
+      setUsers(rosterUsers);
+      setLoading(false);
+    }
+  }, [rosterUsers]);
+
+  // Live validation for bulk email list
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const parsedBulkEmails = useMemo(() => {
+    if (!bulkEmailsText.trim()) return { raw: [], valid: [], duplicates: [], invalid: [] };
+    const tokens = bulkEmailsText
+      .split(/[\n,;\s]+/)
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    const seen = new Set<string>();
+    const valid: string[] = [];
+    const duplicates: string[] = [];
+    const invalid: string[] = [];
+
+    tokens.forEach((token) => {
+      if (!emailRegex.test(token)) {
+        invalid.push(token);
+      } else if (seen.has(token) || users.some((u) => u.email.toLowerCase() === token)) {
+        duplicates.push(token);
+      } else {
+        seen.add(token);
+        valid.push(token);
+      }
+    });
+
+    return { raw: tokens, valid, duplicates, invalid };
+  }, [bulkEmailsText, users]);
+
+  const handleBulkFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target?.result as string;
+      if (content) {
+        setBulkEmailsText((prev) => (prev ? `${prev}\n${content}` : content));
+        showToast(`Loaded emails from ${file.name}`, 'success');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleBulkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (parsedBulkEmails.valid.length === 0) {
+      showToast('Please enter at least one valid, unregistered email address.', 'error');
+      return;
+    }
+
+    setBulkLoading(true);
+    try {
+      const res = await api.admin.bulkRegister({
+        emails: parsedBulkEmails.valid,
+        role: bulkRole,
+        storage_limit_gb: bulkStorageGb,
+        school_id: bulkSchoolId,
+        default_password: bulkDefaultPassword,
+      });
+
+      setBulkResult(res);
+      showToast(res.message, 'success');
+      fetchUsers();
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Bulk pre-registration failed.', 'error');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleCopyOnboardingRoster = () => {
+    if (!bulkResult || !bulkResult.users) return;
+    const lines = [
+      'Teacher Onboarding Roster - Teacher Resource Hub',
+      `Institution / School ID: ${bulkSchoolId}`,
+      `Generated At: ${new Date().toLocaleString()}`,
+      '-------------------------------------------------------',
+      'Name | Email | Initial Password | Role | Storage Quota',
+      ...bulkResult.users.map(
+        (u) =>
+          `${u.username} | ${u.email} | ${u.temporary_password || bulkDefaultPassword} | ${u.role} | ${Math.round(
+            u.storage_limit / (1024 * 1024 * 1024)
+          )} GB`
+      ),
+    ].join('\n');
+
+    navigator.clipboard.writeText(lines);
+    setCopiedRoster(true);
+    setTimeout(() => setCopiedRoster(false), 2500);
+    showToast('Onboarding roster credentials copied to clipboard!', 'success');
+  };
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ text, type });
@@ -334,6 +487,19 @@ export const AdminUsersView: React.FC = () => {
 
           <button
             type="button"
+            onClick={() => {
+              setBulkResult(null);
+              setShowBulkModal(true);
+            }}
+            className="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-semibold hover:bg-sky-700 transition-colors flex items-center space-x-1.5 shadow-xs"
+            title="Bulk pre-register multiple teachers at once from a list or file"
+          >
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span>Bulk Pre-Register</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowCreateModal(true)}
             className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors flex items-center space-x-1.5 shadow-xs"
           >
@@ -552,8 +718,20 @@ export const AdminUsersView: React.FC = () => {
                           {u.username.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-semibold text-slate-900 truncate">{u.username}</div>
-                          <div className="text-slate-400 text-2xs truncate">{u.email}</div>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-semibold text-slate-900 truncate">{u.username}</span>
+                            {u.pre_registered && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                                Pre-Registered
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-slate-400 text-2xs truncate flex items-center space-x-1">
+                            <span>{u.email}</span>
+                            {(u.schoolId || u.school_id) && (
+                              <span className="text-slate-300">· {u.schoolId || u.school_id}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -1105,99 +1283,288 @@ export const AdminUsersView: React.FC = () => {
         </div>
       )}
 
-      {/* Create User Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95">
-            <h3 className="font-bold text-slate-900 text-base mb-1">Add Educator / Teacher Account</h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Create a new account with customized access permissions and storage quota.
-            </p>
-
-            <form onSubmit={handleCreateUser} className="space-y-3">
+      {/* Bulk Pre-Register Teachers Modal */}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3 mb-4">
               <div>
-                <label className="block text-2xs font-bold text-slate-600 uppercase mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={createUsername}
-                  onChange={(e) => setCreateUsername(e.target.value)}
-                  placeholder="e.g. Dr. Robert Vance"
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500"
-                />
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <UploadCloud className="w-5 h-5 text-sky-600" />
+                  Bulk Pre-Register Teachers & Staff
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Onboard multiple faculty members simultaneously from an email list or CSV file.
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBulkModal(false);
+                  setBulkResult(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              <div>
-                <label className="block text-2xs font-bold text-slate-600 uppercase mb-1">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={createEmail}
-                  onChange={(e) => setCreateEmail(e.target.value)}
-                  placeholder="e.g. robert.science@school.edu"
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-2xs font-bold text-slate-600 uppercase mb-1">Initial Password</label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={createPassword}
-                  onChange={(e) => setCreatePassword(e.target.value)}
-                  placeholder="Min. 6 characters"
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="block text-2xs font-bold text-slate-600 uppercase mb-1">Role</label>
-                  <select
-                    value={createRole}
-                    onChange={(e) => setCreateRole(e.target.value as 'teacher' | 'admin')}
-                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500"
-                  >
-                    <option value="teacher">Teacher</option>
-                    <option value="admin">Administrator</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-2xs font-bold text-slate-600 uppercase mb-1">Storage Quota</label>
-                  <div className="flex items-center space-x-1.5">
-                    <input
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={createStorageGb}
-                      onChange={(e) => setCreateStorageGb(parseInt(e.target.value) || 10)}
-                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                    <span className="text-2xs font-bold text-slate-500">GB</span>
+            {bulkResult ? (
+              /* Success / Results Summary View */
+              <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900">
+                  <div className="flex items-center space-x-2 font-bold text-sm text-emerald-800">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                    <span>{bulkResult.message}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                    <div className="p-2 bg-white rounded-lg border border-emerald-100 shadow-2xs">
+                      <div className="text-lg font-black text-emerald-600">{bulkResult.registeredCount}</div>
+                      <div className="text-2xs font-semibold text-slate-500 uppercase">Pre-Registered</div>
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-emerald-100 shadow-2xs">
+                      <div className="text-lg font-black text-amber-600">{bulkResult.skippedCount}</div>
+                      <div className="text-2xs font-semibold text-slate-500 uppercase">Skipped (Existing)</div>
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-emerald-100 shadow-2xs">
+                      <div className="text-lg font-black text-slate-500">{bulkResult.totalSubmitted}</div>
+                      <div className="text-2xs font-semibold text-slate-500 uppercase">Total Processed</div>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingUser}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-xs"
-                >
-                  {creatingUser ? 'Creating...' : 'Create Account'}
-                </button>
+                {bulkResult.users && bulkResult.users.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Onboarded Staff Accounts ({bulkResult.users.length})
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={handleCopyOnboardingRoster}
+                        className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg flex items-center space-x-1.5 transition-colors"
+                      >
+                        {copiedRoster ? (
+                          <>
+                            <CheckCheck className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Copied to Clipboard!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy Roster & Passwords</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                          <tr>
+                            <th className="py-2 px-3">Name</th>
+                            <th className="py-2 px-3">Email</th>
+                            <th className="py-2 px-3">Default Password</th>
+                            <th className="py-2 px-3">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {bulkResult.users.map((u) => (
+                            <tr key={u.id} className="hover:bg-slate-50/50">
+                              <td className="py-2 px-3 font-medium text-slate-900">{u.username}</td>
+                              <td className="py-2 px-3 text-slate-600 font-mono text-2xs">{u.email}</td>
+                              <td className="py-2 px-3 font-mono text-2xs text-slate-700">
+                                {u.temporary_password || bulkDefaultPassword}
+                              </td>
+                              <td className="py-2 px-3">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                  Active
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {bulkResult.skippedEmails && bulkResult.skippedEmails.length > 0 && (
+                  <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-800">
+                    <span className="font-bold">Skipped (already registered): </span>
+                    <span className="font-mono text-2xs">{bulkResult.skippedEmails.join(', ')}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBulkResult(null);
+                      setBulkEmailsText('');
+                    }}
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    Register More
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBulkModal(false);
+                      setBulkResult(null);
+                    }}
+                    className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-xs"
+                  >
+                    Done & View Roster
+                  </button>
+                </div>
               </div>
-            </form>
+            ) : (
+              /* Input Form View */
+              <form onSubmit={handleBulkSubmit} className="space-y-4 overflow-y-auto flex-1 pr-1">
+                {/* Method selector banner */}
+                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="flex items-center space-x-2 text-xs text-slate-700 font-medium">
+                    <FileSpreadsheet className="w-4 h-4 text-sky-600" />
+                    <span>Upload CSV or TXT file of staff emails</span>
+                  </div>
+                  <label className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer shadow-2xs flex items-center space-x-1.5 transition-colors">
+                    <FileUp className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Choose File</span>
+                    <input
+                      type="file"
+                      accept=".csv,.txt"
+                      onChange={handleBulkFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Textarea for emails */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-2xs font-bold text-slate-700 uppercase">
+                      Paste Teacher Emails (Comma, Semicolon, or Newline separated)
+                    </label>
+                    <span className="text-2xs text-slate-400">e.g. j.smith@school.edu, r.vance@school.edu</span>
+                  </div>
+                  <textarea
+                    rows={6}
+                    required
+                    value={bulkEmailsText}
+                    onChange={(e) => setBulkEmailsText(e.target.value)}
+                    placeholder="sarah.math@school.edu
+john.science@school.edu
+elena.english@school.edu, robert.cs@school.edu"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Real-time parse status pills */}
+                {bulkEmailsText.trim() && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-medium">
+                      Detected: <strong className="text-slate-900">{parsedBulkEmails.raw.length}</strong>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
+                      Valid & Ready: <strong className="text-emerald-700">{parsedBulkEmails.valid.length}</strong>
+                    </span>
+                    {parsedBulkEmails.duplicates.length > 0 && (
+                      <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-medium">
+                        Duplicate / Registered: <strong>{parsedBulkEmails.duplicates.length}</strong>
+                      </span>
+                    )}
+                    {parsedBulkEmails.invalid.length > 0 && (
+                      <span className="px-2.5 py-1 rounded-full bg-red-50 text-red-800 border border-red-200 font-medium">
+                        Invalid Format: <strong>{parsedBulkEmails.invalid.length}</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Configuration Options */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 uppercase mb-1">
+                      Institution / School ID
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={bulkSchoolId}
+                      onChange={(e) => setBulkSchoolId(e.target.value)}
+                      placeholder="e.g. pannaipuram_high"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 uppercase mb-1">
+                      Default Initial Password
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      minLength={6}
+                      value={bulkDefaultPassword}
+                      onChange={(e) => setBulkDefaultPassword(e.target.value)}
+                      placeholder="teacher123"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 uppercase mb-1">
+                      Storage Quota
+                    </label>
+                    <div className="flex items-center space-x-1.5">
+                      <select
+                        value={bulkStorageGb}
+                        onChange={(e) => setBulkStorageGb(Number(e.target.value))}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-1 focus:ring-sky-500"
+                      >
+                        <option value={5}>5 GB</option>
+                        <option value={10}>10 GB (Recommended)</option>
+                        <option value={20}>20 GB</option>
+                        <option value={50}>50 GB</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                  <div className="text-2xs text-slate-500">
+                    Accounts will be created with teacher access rights and synced to Firestore in real-time.
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkModal(false)}
+                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={bulkLoading || parsedBulkEmails.valid.length === 0}
+                      className="px-5 py-2 bg-sky-600 text-white rounded-lg text-xs font-semibold hover:bg-sky-700 transition-colors shadow-xs flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {bulkLoading ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Pre-Registering...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Pre-Register {parsedBulkEmails.valid.length} Teacher(s)</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ import type {
   SharePermission,
   NotificationItem,
   ActivityLog,
+  InstitutionTheme,
 } from '../src/types.ts';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -33,6 +34,7 @@ export interface DatabaseSchema {
   shares: SharePermission[];
   notifications: NotificationItem[];
   logs: ActivityLog[];
+  institution_theme?: InstitutionTheme;
 }
 
 // Initial Database Seeding
@@ -561,6 +563,14 @@ class Database {
     return user;
   }
 
+  public createUsersBulk(users: StoredUser[]): StoredUser[] {
+    for (const u of users) {
+      this.data.users.push(u);
+    }
+    this.save();
+    return users;
+  }
+
   public updateUser(id: string, updates: Partial<StoredUser>): StoredUser | null {
     const idx = this.data.users.findIndex((u) => u.id === id);
     if (idx === -1) return null;
@@ -731,6 +741,57 @@ class Database {
 
   public getLogs(): ActivityLog[] {
     return this.data.logs;
+  }
+
+  // Institution & School Theme
+  public getInstitutionTheme(schoolId: string = 'pannaipuram_high'): InstitutionTheme {
+    if (!this.data.institution_theme) {
+      this.data.institution_theme = {
+        school_id: schoolId,
+        school_name: 'Govt Hr Sec School, Pannaipuram',
+        primary_color: '#1e3a8a', // Deep Academic Navy
+        accent_color: '#3b82f6',
+        navbar_style: 'solid',
+        sidebar_style: 'solid',
+        updated_at: new Date().toISOString(),
+        updated_by_name: 'System Default',
+      };
+      this.save();
+    }
+    return this.data.institution_theme;
+  }
+
+  public updateInstitutionTheme(
+    themeUpdate: Partial<InstitutionTheme>,
+    updatedByName: string = 'Staff'
+  ): InstitutionTheme {
+    const current = this.getInstitutionTheme();
+    this.data.institution_theme = {
+      ...current,
+      ...themeUpdate,
+      school_id: current.school_id,
+      primary_color: themeUpdate.primary_color || current.primary_color,
+      school_name: themeUpdate.school_name || current.school_name,
+      updated_at: new Date().toISOString(),
+      updated_by_name: updatedByName,
+    };
+    this.save();
+    return this.data.institution_theme;
+  }
+
+  public resetInstitutionTheme(schoolId: string = 'pannaipuram_high'): InstitutionTheme {
+    this.data.institution_theme = {
+      school_id: schoolId,
+      school_name: 'Govt Hr Sec School, Pannaipuram',
+      primary_color: '#1e3a8a',
+      accent_color: '#3b82f6',
+      navbar_style: 'solid',
+      sidebar_style: 'solid',
+      updated_at: new Date().toISOString(),
+      updated_by_name: 'System Reset',
+    };
+    this.save();
+    return this.data.institution_theme;
   }
 }
 

@@ -16,9 +16,10 @@ interface ShareModalProps {
   file: FileItem | null;
   onClose: () => void;
   onShareUpdated: () => void;
+  rosterUsers?: User[];
 }
 
-export const ShareModal: React.FC<ShareModalProps> = ({ file, onClose, onShareUpdated }) => {
+export const ShareModal: React.FC<ShareModalProps> = ({ file, onClose, onShareUpdated, rosterUsers }) => {
   const [sharingType, setSharingType] = useState<'private' | 'selected' | 'all_teachers' | 'admin_only'>('private');
   const [permission, setPermission] = useState<'view' | 'edit'>('view');
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -34,12 +35,16 @@ export const ShareModal: React.FC<ShareModalProps> = ({ file, onClose, onShareUp
         setPermission(file.shared_with[0].permission || 'view');
       }
     }
-    // Fetch users for selection
-    api.admin
-      .getUsers()
-      .then((res) => setAllUsers(res.users))
-      .catch(() => {});
-  }, [file]);
+    if (rosterUsers && rosterUsers.length > 0) {
+      setAllUsers(rosterUsers);
+    } else {
+      // Fetch users for selection
+      api.admin
+        .getUsers()
+        .then((res) => setAllUsers(res.users))
+        .catch(() => {});
+    }
+  }, [file, rosterUsers]);
 
   if (!file) return null;
 

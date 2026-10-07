@@ -33,6 +33,9 @@ import {
   RefreshCw,
   Archive,
   AlertTriangle,
+  FileSpreadsheet,
+  Presentation,
+  FileCode,
 } from 'lucide-react';
 import { FileItem, Folder, ViewTab } from '../types.ts';
 import { formatBytes, formatDate } from '../utils/format.ts';
@@ -368,7 +371,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
   );
 
   const getFileCategory = (ext: string): 'video' | 'audio' | 'document' | 'image' | 'other' => {
-    const e = ext.toLowerCase().replace('.', '');
+    const e = (ext || '').toLowerCase().replace('.', '');
     if (['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(e)) return 'video';
     if (['mp3', 'wav', 'm4a', 'aac', 'ogg'].includes(e)) return 'audio';
     if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(e))
@@ -377,13 +380,121 @@ export const FileManager: React.FC<FileManagerProps> = ({
     return 'other';
   };
 
+  const getFileTypeVisualInfo = (file: FileItem) => {
+    const ext = (file.file_type || '').toLowerCase().replace('.', '');
+
+    if (ext === 'pdf') {
+      return {
+        icon: <FileText className="w-5 h-5 text-red-600" />,
+        badgeLabel: 'PDF',
+        categoryLabel: 'PDF Document',
+        bgLight: 'bg-red-50',
+        borderColor: 'border-red-200',
+        textColor: 'text-red-700',
+        badgeColor: 'bg-red-100 text-red-700 border-red-200',
+      };
+    }
+    if (['xls', 'xlsx', 'csv'].includes(ext)) {
+      return {
+        icon: <FileSpreadsheet className="w-5 h-5 text-emerald-600" />,
+        badgeLabel: ext.toUpperCase(),
+        categoryLabel: 'Spreadsheet',
+        bgLight: 'bg-emerald-50',
+        borderColor: 'border-emerald-200',
+        textColor: 'text-emerald-700',
+        badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+      };
+    }
+    if (['doc', 'docx'].includes(ext)) {
+      return {
+        icon: <FileText className="w-5 h-5 text-blue-600" />,
+        badgeLabel: ext.toUpperCase(),
+        categoryLabel: 'Word Document',
+        bgLight: 'bg-blue-50',
+        borderColor: 'border-blue-200',
+        textColor: 'text-blue-700',
+        badgeColor: 'bg-blue-100 text-blue-700 border-blue-200',
+      };
+    }
+    if (['ppt', 'pptx'].includes(ext)) {
+      return {
+        icon: <Presentation className="w-5 h-5 text-amber-600" />,
+        badgeLabel: ext.toUpperCase(),
+        categoryLabel: 'Presentation',
+        bgLight: 'bg-amber-50',
+        borderColor: 'border-amber-200',
+        textColor: 'text-amber-700',
+        badgeColor: 'bg-amber-100 text-amber-700 border-amber-200',
+      };
+    }
+    if (['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(ext)) {
+      return {
+        icon: <Film className="w-5 h-5 text-purple-600" />,
+        badgeLabel: ext.toUpperCase(),
+        categoryLabel: 'Video Lesson',
+        bgLight: 'bg-purple-50',
+        borderColor: 'border-purple-200',
+        textColor: 'text-purple-700',
+        badgeColor: 'bg-purple-100 text-purple-700 border-purple-200',
+      };
+    }
+    if (['mp3', 'wav', 'm4a', 'aac', 'ogg'].includes(ext)) {
+      return {
+        icon: <Music className="w-5 h-5 text-pink-600" />,
+        badgeLabel: ext.toUpperCase(),
+        categoryLabel: 'Audio Clip',
+        bgLight: 'bg-pink-50',
+        borderColor: 'border-pink-200',
+        textColor: 'text-pink-700',
+        badgeColor: 'bg-pink-100 text-pink-700 border-pink-200',
+      };
+    }
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) {
+      return {
+        icon: <ImageIcon className="w-5 h-5 text-teal-600" />,
+        badgeLabel: ext.toUpperCase(),
+        categoryLabel: 'Image Asset',
+        bgLight: 'bg-teal-50',
+        borderColor: 'border-teal-200',
+        textColor: 'text-teal-700',
+        badgeColor: 'bg-teal-100 text-teal-700 border-teal-200',
+      };
+    }
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+      return {
+        icon: <Archive className="w-5 h-5 text-orange-600" />,
+        badgeLabel: ext.toUpperCase(),
+        categoryLabel: 'Archive Bundle',
+        bgLight: 'bg-orange-50',
+        borderColor: 'border-orange-200',
+        textColor: 'text-orange-700',
+        badgeColor: 'bg-orange-100 text-orange-700 border-orange-200',
+      };
+    }
+    if (['txt', 'md', 'json', 'py', 'js', 'ts', 'html', 'css'].includes(ext)) {
+      return {
+        icon: <FileCode className="w-5 h-5 text-indigo-600" />,
+        badgeLabel: ext.toUpperCase(),
+        categoryLabel: 'Text / Code',
+        bgLight: 'bg-indigo-50',
+        borderColor: 'border-indigo-200',
+        textColor: 'text-indigo-700',
+        badgeColor: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+      };
+    }
+    return {
+      icon: <FileIcon className="w-5 h-5 text-slate-600" />,
+      badgeLabel: (ext || 'FILE').toUpperCase(),
+      categoryLabel: 'Document File',
+      bgLight: 'bg-slate-50',
+      borderColor: 'border-slate-200',
+      textColor: 'text-slate-700',
+      badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
+    };
+  };
+
   const renderFileIcon = (file: FileItem) => {
-    const cat = getFileCategory(file.file_type);
-    if (cat === 'video') return <Film className="w-5 h-5 text-red-500" />;
-    if (cat === 'audio') return <Music className="w-5 h-5 text-pink-500" />;
-    if (cat === 'document') return <FileText className="w-5 h-5 text-blue-500" />;
-    if (cat === 'image') return <ImageIcon className="w-5 h-5 text-emerald-500" />;
-    return <FileIcon className="w-5 h-5 text-slate-500" />;
+    return getFileTypeVisualInfo(file).icon;
   };
 
   const handleItemPrimaryClick = (file: FileItem) => {
@@ -392,6 +503,104 @@ export const FileManager: React.FC<FileManagerProps> = ({
     else if (cat === 'audio') onPlayAudio(file);
     else if (cat === 'document' || cat === 'image') onPreviewDocument(file);
     else onShowInfo(file);
+  };
+
+  // Small-sized visual preview thumbnail component for Image and PDF files (offline-ready via Workbox precache)
+  const ResourceThumbnailCard: React.FC<{
+    file: FileItem;
+    visual: ReturnType<typeof getFileTypeVisualInfo>;
+    onClick: () => void;
+  }> = ({ file, visual, onClick }) => {
+    const [hasError, setHasError] = useState(false);
+    const [isLoaded, setIsLoaded] = useState(false);
+    const thumbnailUrl = api.files.getThumbnailUrl(file);
+    const ext = (file.file_type || '').toLowerCase();
+    const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp'].includes(ext);
+    const isPdf = ext === 'pdf' || file.mime_type === 'application/pdf';
+
+    return (
+      <div
+        onClick={onClick}
+        className="relative w-full h-32 bg-slate-100/90 border-b border-slate-100 flex items-center justify-center overflow-hidden cursor-pointer group/thumb select-none transition-colors hover:bg-slate-200/50"
+        title={`Preview ${file.file_name}`}
+      >
+        {!hasError && (
+          <img
+            src={thumbnailUrl}
+            alt={file.file_name}
+            onLoad={() => setIsLoaded(true)}
+            onError={() => setHasError(true)}
+            className={`w-full h-full object-cover object-top transition-all duration-300 group-hover/thumb:scale-105 ${
+              isLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            loading="lazy"
+          />
+        )}
+
+        {/* Fallback preview card if thumbnail is loading or failed */}
+        {(!isLoaded || hasError) && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-gradient-to-b from-slate-50 to-slate-100/90">
+            <div
+              className={`w-9 h-9 rounded-lg ${visual.bgLight} border ${visual.borderColor} flex items-center justify-center shadow-2xs mb-1.5`}
+            >
+              {visual.icon}
+            </div>
+            <span className="text-[11px] font-semibold text-slate-700 truncate max-w-[85%]">
+              {file.file_name}
+            </span>
+            <span className="text-[9px] font-mono text-slate-400 mt-0.5">
+              {isPdf ? 'Precached PDF Document' : isImage ? 'Visual Image Preview' : visual.categoryLabel}
+            </span>
+          </div>
+        )}
+
+        {/* Hover action overlay */}
+        <div className="absolute inset-0 bg-slate-900/35 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-white/95 text-slate-800 shadow-md transform translate-y-1 group-hover/thumb:translate-y-0 transition-transform">
+            <Eye className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+            Preview
+          </span>
+        </div>
+
+        {/* Corner badge indicating preview format */}
+        <div className="absolute bottom-1.5 right-1.5 z-10 pointer-events-none">
+          <span
+            className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase shadow-2xs ${
+              isPdf
+                ? 'bg-red-600 text-white'
+                : isImage
+                ? 'bg-teal-600 text-white'
+                : 'bg-slate-900/70 text-white backdrop-blur-xs'
+            }`}
+          >
+            {isPdf ? 'PDF Preview' : isImage ? 'IMG' : ext.toUpperCase()}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const MiniThumbnail: React.FC<{
+    file: FileItem;
+    visual: ReturnType<typeof getFileTypeVisualInfo>;
+  }> = ({ file, visual }) => {
+    const [loadFailed, setLoadFailed] = useState(false);
+    const ext = (file.file_type || '').toLowerCase();
+    const isImageOrPdf = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'pdf'].includes(ext);
+
+    if (!isImageOrPdf || loadFailed) {
+      return <>{visual.icon}</>;
+    }
+
+    return (
+      <img
+        src={api.files.getThumbnailUrl(file)}
+        alt=""
+        onError={() => setLoadFailed(true)}
+        className="w-full h-full object-cover rounded-md"
+        loading="lazy"
+      />
+    );
   };
 
   // Human readable date filter label
@@ -773,53 +982,70 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
       {/* Subfolder Chips (if any) */}
       {currentSubfolders.length > 0 && currentViewTab !== 'trash' && (
-        <div className="space-y-1.5">
-          <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider block">
-            Folders ({currentSubfolders.length})
-          </span>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">
+              Folders & Directories ({currentSubfolders.length})
+            </span>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
-            {currentSubfolders.map((f) => (
-              <div
-                key={f.id}
-                className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-xs transition-all group"
-              >
-                <button
-                  type="button"
-                  onClick={() => onNavigateFolder(f.id)}
-                  className="flex items-center space-x-2 truncate flex-1 text-left min-w-0"
-                  title={`Open folder "${f.folder_name}"`}
+            {currentSubfolders.map((f) => {
+              const subItemsCount = files.filter(
+                (item) => item.folder_id === f.id && !item.is_trash && !(item as any).in_trash
+              ).length;
+
+              return (
+                <div
+                  key={f.id}
+                  className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-xs transition-all group"
                 >
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{
-                      backgroundColor: `${f.color || '#3b82f6'}15`,
-                      color: f.color || '#3b82f6',
-                    }}
+                  <button
+                    type="button"
+                    onClick={() => onNavigateFolder(f.id)}
+                    className="flex items-center space-x-2.5 truncate flex-1 text-left min-w-0"
+                    title={`Open folder "${f.folder_name}" (${subItemsCount} resources)`}
                   >
-                    <FolderIcon className="w-4 h-4 fill-current" />
-                  </div>
-                  <div className="truncate flex-1 min-w-0">
-                    <div className="font-semibold text-xs text-slate-800 truncate group-hover:text-indigo-600">
-                      {f.folder_name}
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-2xs transition-transform group-hover:scale-105"
+                      style={{
+                        backgroundColor: `${f.color || '#3b82f6'}15`,
+                        color: f.color || '#3b82f6',
+                        border: `1px solid ${f.color || '#3b82f6'}30`,
+                      }}
+                    >
+                      <FolderIcon className="w-4 h-4 fill-current" />
                     </div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  id={`delete-subfolder-btn-${f.id}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setFolderToDelete(f);
-                    setDeleteFolderError(null);
-                  }}
-                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-1 flex-shrink-0"
-                  title={`Delete folder "${f.folder_name}"`}
-                  aria-label={`Delete folder ${f.folder_name}`}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+                    <div className="truncate flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="px-1 py-0.2 text-[8px] font-bold uppercase rounded bg-blue-50 text-blue-700 border border-blue-200">
+                          FOLDER
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {subItemsCount} {subItemsCount === 1 ? 'file' : 'files'}
+                        </span>
+                      </div>
+                      <div className="font-semibold text-xs text-slate-800 truncate group-hover:text-indigo-600">
+                        {f.folder_name}
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    id={`delete-subfolder-btn-${f.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFolderToDelete(f);
+                      setDeleteFolderError(null);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-1 flex-shrink-0"
+                    title={`Delete folder "${f.folder_name}"`}
+                    aria-label={`Delete folder ${f.folder_name}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -874,6 +1100,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
           {filteredFiles.map((file) => {
             const cat = getFileCategory(file.file_type);
+            const visual = getFileTypeVisualInfo(file);
             const isMenuOpen = activeMenuId === file.id;
             const isSelected = selectedFileIds.has(file.id);
 
@@ -891,7 +1118,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
                   onClick={() => handleItemPrimaryClick(file)}
                   className="p-3.5 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between cursor-pointer group-hover:bg-indigo-50/30 transition-colors"
                 >
-                  <div className="flex items-center space-x-2.5 truncate">
+                  <div className="flex items-center space-x-2.5 truncate min-w-0 flex-1">
                     {/* Bulk Selection Checkbox */}
                     <button
                       type="button"
@@ -910,15 +1137,36 @@ export const FileManager: React.FC<FileManagerProps> = ({
                       )}
                     </button>
 
-                    <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-2xs">
-                      {renderFileIcon(file)}
+                    <div
+                      className={`w-9 h-9 rounded-lg ${visual.bgLight} border ${visual.borderColor} flex items-center justify-center flex-shrink-0 shadow-2xs overflow-hidden transition-transform group-hover:scale-105`}
+                    >
+                      <MiniThumbnail file={file} visual={visual} />
                     </div>
-                    <div className="truncate">
-                      <span className="font-semibold text-xs text-slate-800 truncate block group-hover:text-indigo-700">
+                    <div className="truncate min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span
+                          className={`px-1.5 py-0.2 text-[8px] font-mono font-bold uppercase rounded border ${visual.badgeColor}`}
+                        >
+                          {visual.badgeLabel}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium truncate">
+                          {visual.categoryLabel}
+                        </span>
+                        {file.pending_sync && (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-3xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300" title="Queued for upload while disconnected">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mr-1 animate-pulse" />
+                            Pending Sync
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className="font-semibold text-xs text-slate-800 truncate block group-hover:text-indigo-700"
+                        title={file.file_name}
+                      >
                         {file.file_name}
                       </span>
-                      <span className="text-[10px] text-slate-400 uppercase font-mono">
-                        {file.file_type} • {formatBytes(file.file_size)}
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {formatBytes(file.file_size)}
                       </span>
                     </div>
                   </div>
@@ -931,7 +1179,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
                         e.stopPropagation();
                         onToggleFavorite(file);
                       }}
-                      className="p-1 text-slate-300 hover:text-amber-500 rounded transition-colors flex-shrink-0"
+                      className="p-1 text-slate-300 hover:text-amber-500 rounded transition-colors flex-shrink-0 ml-1"
                     >
                       <Star
                         className={`w-4 h-4 ${
@@ -941,6 +1189,15 @@ export const FileManager: React.FC<FileManagerProps> = ({
                     </button>
                   )}
                 </div>
+
+                {/* Visual Preview Thumbnail for Images & PDFs (Precached in PWA Workbox) */}
+                {(cat === 'image' || file.file_type === 'pdf') && (
+                  <ResourceThumbnailCard
+                    file={file}
+                    visual={visual}
+                    onClick={() => handleItemPrimaryClick(file)}
+                  />
+                )}
 
                 {/* Card Middle: Metadata (Device, Date, Owner) */}
                 <div className="p-3 text-2xs text-slate-500 space-y-1.5">
@@ -1183,6 +1440,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {filteredFiles.map((file) => {
                   const cat = getFileCategory(file.file_type);
+                  const visual = getFileTypeVisualInfo(file);
                   const isSelected = selectedFileIds.has(file.id);
 
                   return (
@@ -1214,19 +1472,37 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
                       <td className="px-4 py-3">
                         <div className="flex items-center space-x-3 truncate max-w-sm">
-                          <div className="p-1.5 bg-slate-50 rounded-lg text-slate-500 border border-slate-200 flex-shrink-0">
-                            {renderFileIcon(file)}
+                          <div
+                            className={`w-8 h-8 ${visual.bgLight} rounded-lg border ${visual.borderColor} flex items-center justify-center flex-shrink-0 overflow-hidden shadow-2xs`}
+                          >
+                            <MiniThumbnail file={file} visual={visual} />
                           </div>
-                          <span className="font-semibold text-slate-800 truncate hover:text-indigo-600">
+                          <span
+                            className="font-semibold text-slate-800 truncate hover:text-indigo-600"
+                            title={file.file_name}
+                          >
                             {file.file_name}
                           </span>
+                          {file.pending_sync && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300 flex-shrink-0" title="Queued for upload while disconnected">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mr-1 animate-pulse" />
+                              Pending Sync
+                            </span>
+                          )}
                           {file.is_favorite && (
                             <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 flex-shrink-0" />
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs font-medium text-slate-600 uppercase">
-                        {file.file_type}
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-md text-[10px] font-medium border ${visual.badgeColor}`}
+                        >
+                          <span className="font-mono font-bold uppercase">{visual.badgeLabel}</span>
+                          <span className="hidden sm:inline text-slate-400 font-normal">
+                            ({visual.categoryLabel})
+                          </span>
+                        </span>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-slate-400">
                         {formatBytes(file.file_size)}

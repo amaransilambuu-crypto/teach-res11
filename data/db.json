@@ -11,7 +11,7 @@
       "storage_limit": 21474836480,
       "avatar_color": "#4f46e5",
       "created_at": "2026-08-10T01:47:53.444Z",
-      "last_login": "2026-09-10T14:28:40.602Z",
+      "last_login": "2026-10-07T02:18:16.459Z",
       "device": "Web Browser",
       "can_upload": true,
       "can_download": true,
@@ -29,7 +29,7 @@
       "storage_limit": 10737418240,
       "avatar_color": "#0284c7",
       "created_at": "2026-08-26T01:47:53.445Z",
-      "last_login": "2026-09-10T14:28:40.472Z",
+      "last_login": "2026-10-07T02:05:31.492Z",
       "device": "Web Browser",
       "can_upload": true,
       "can_download": true,
@@ -77,6 +77,44 @@
       "created_at": "2026-09-03T15:37:57.657Z",
       "last_login": "2026-09-10T14:37:57.657Z",
       "device": "iPad Air",
+      "can_upload": true,
+      "can_download": true,
+      "can_delete": true,
+      "can_share": true
+    },
+    {
+      "id": "usr_1791339516795_ns98ar_0",
+      "username": "Alex Physics",
+      "email": "alex.physics@school.edu",
+      "password_hash": "$2b$10$fHQq2ngCOMKZkNcCl/1qxujKXWSMMW03oMIc8mCX4tgFSD9AtRace",
+      "role": "teacher",
+      "status": "active",
+      "storage_used": 0,
+      "storage_limit": 10737418240,
+      "avatar_color": "#0284c7",
+      "created_at": "2026-10-07T02:18:36.928Z",
+      "schoolId": "pannaipuram_high",
+      "school_id": "pannaipuram_high",
+      "pre_registered": true,
+      "can_upload": true,
+      "can_download": true,
+      "can_delete": true,
+      "can_share": true
+    },
+    {
+      "id": "usr_1791339516928_hoqrop_1",
+      "username": "Priya Biology",
+      "email": "priya.biology@school.edu",
+      "password_hash": "$2b$10$GyU4WADbNUA2xdCZuHkzXOHMt1JGnsaU9ynqgdOzDRL8QiJc/mgi2",
+      "role": "teacher",
+      "status": "active",
+      "storage_used": 0,
+      "storage_limit": 10737418240,
+      "avatar_color": "#059669",
+      "created_at": "2026-10-07T02:18:37.036Z",
+      "schoolId": "pannaipuram_high",
+      "school_id": "pannaipuram_high",
+      "pre_registered": true,
       "can_upload": true,
       "can_download": true,
       "can_delete": true,
@@ -275,6 +313,70 @@
     }
   ],
   "logs": [
+    {
+      "id": "log_1791339517037",
+      "user_id": "usr_admin_01",
+      "user_name": "Admin",
+      "user_email": "admin@school.edu",
+      "action": "BULK_PRE_REGISTER",
+      "details": "Pre-registered 2 staff member accounts (pannaipuram_high)",
+      "timestamp": "2026-10-07T02:18:37.037Z",
+      "device": "Web Browser"
+    },
+    {
+      "id": "log_1791339496463",
+      "user_id": "usr_admin_01",
+      "user_name": "Admin",
+      "user_email": "admin@school.edu",
+      "action": "USER_LOGIN",
+      "details": "User logged in successfully from Web Browser",
+      "timestamp": "2026-10-07T02:18:16.463Z",
+      "device": "Web Browser",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log_1791338731496",
+      "user_id": "usr_teacher_01",
+      "user_name": "Teacher",
+      "user_email": "teacher@school.edu",
+      "action": "USER_LOGIN",
+      "details": "User logged in successfully from Web Browser",
+      "timestamp": "2026-10-07T02:05:31.496Z",
+      "device": "Web Browser",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log_1789355555410",
+      "user_id": "usr_admin_01",
+      "user_name": "Admin",
+      "user_email": "admin@school.edu",
+      "action": "THEME_CUSTOMIZED",
+      "details": "Updated institution brand color to #1e3a8a for Govt Hr Sec School, Pannaipuram",
+      "timestamp": "2026-09-14T03:12:35.410Z",
+      "device": "Web Browser"
+    },
+    {
+      "id": "log_1789355555387",
+      "user_id": "usr_admin_01",
+      "user_name": "Admin",
+      "user_email": "admin@school.edu",
+      "action": "USER_LOGIN",
+      "details": "User logged in successfully from Web Browser",
+      "timestamp": "2026-09-14T03:12:35.387Z",
+      "device": "Web Browser",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log_1789355553160",
+      "user_id": "usr_admin_01",
+      "user_name": "Admin",
+      "user_email": "admin@school.edu",
+      "action": "USER_LOGIN",
+      "details": "User logged in successfully from Web Browser",
+      "timestamp": "2026-09-14T03:12:33.160Z",
+      "device": "Web Browser",
+      "ip": "127.0.0.1"
+    },
     {
       "id": "log_1789054687574",
       "user_id": "usr_1788919444938_1t8aqr",
@@ -814,5 +916,12 @@
       "timestamp": "2026-09-04T01:47:53.445Z",
       "device": "iPad Pro"
     }
-  ]
+  ],
+  "institution_theme": {
+    "school_id": "pannaipuram_high",
+    "school_name": "Govt Hr Sec School, Pannaipuram",
+    "primary_color": "#1e3a8a",
+    "updated_at": "2026-09-14T03:12:35.410Z",
+    "updated_by_name": "Admin"
+  }
 }
